@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doomstack - The Villain Network</title>
+    <!-- Import Socket.IO for real-time features -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background-color: #121212; color: #00ff00; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .box { border: 1px solid #00ff00; padding: 20px; margin-bottom: 20px; background: #1e1e1e; }
+        h1, h2 { color: #ff003c; text-shadow: 0 0 5px #ff003c; }
+        input, select, button { width: 100%; padding: 10px; margin: 5px 0 15px 0; background: #000; border: 1px solid #00ff00; color: #00ff00; }
+        button { background: #ff003c; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #cc0030; }
+        .hidden { display: none; }
+        .post { border-bottom: 1px dashed #00ff00; padding-bottom: 10px; margin-bottom: 10px; }
+        #alert-banner { display: none; background: #ff003c; color: white; padding: 15px; text-align: center; font-weight: bold; margin-bottom: 20px; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DOOMSTACK</h1>
+        <div id="alert-banner">🚨 GLOBAL HERO ALERT 🚨 <span id="alert-text"></span></div>
+
+        <!-- Auth Section -->
+        <div id="auth-section" class="box">
+            <h2>Access Terminal</h2>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            
+            <div id="signup-fields" class="hidden">
+                <input type="email" id="email" placeholder="Email">
+                <input type="text" id="villainName" placeholder="Villain Name">
+                <input type="text" id="lairLocation" placeholder="Lair Location (e.g., Volcano base)">
+                <select id="villainClass">
+                    <option value="HENCHMAN">Henchman</option>
+                    <option value="MASTERMIND">Mastermind</option>
+                    <option value="MAD_SCIENTIST">Mad Scientist</option>
+                </select>
+            </div>
+
+            <button onclick="login()">Log In</button>
+            <button onclick="toggleSignup()" style="background: #333;">Need an account? Sign Up</button>
+            <button id="signup-btn" class="hidden" onclick="signup()">Submit Registration</button>
+            <p id="auth-message"></p>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="hidden">
+            <h2>Welcome, <span id="user-display"></span></h2>
+            
+            <div class="box">
+                <h3>Emergency Comm Link</h3>
+                <input type="text" id="heroName" placeholder="Hero Name (e.g., Superman)">
+                <input type="text" id="heroLocation" placeholder="Location Spotted">
+                <button onclick="reportHero()">BROADCAST HERO SIGHTING</button>
+            </div>
+
+            <div class="box">
+                <h3>Global Threat Feed</h3>
+                <button onclick="fetchPosts()" style="background: #333;">Refresh Feed</button>
+                <div id="feed"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CHANGE THIS URL when you move your backend to Render or ngrok
+        const BACKEND_URL = 'http://localhost:5000';
+        let socket;
+        let currentUser = null;
+
+        function toggleSignup() {
+            document.getElementById('signup-fields').classList.remove('hidden');
+            document.getElementById('signup-btn').classList.remove('hidden');
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier: username, password })
+                });
+                const data = await res.json();
+                
+                if (data.error) throw new Error(data.error);
+                
+                currentUser = data.user;
+                showDashboard();
+            } catch (err) {
+                document.getElementById('auth-message').innerText = `Error: ${err.message}`;
+            }
+        }
+
+        async function signup() {
+            const data = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                email: document.getElementById('email').value,
+                villainName: document.getElementById('villainName').value,
+                lairLocation: document.getElementById('lairLocation').value,
+                villainClass: document.getElementById('villainClass').value
+            };
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/auth/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.error) throw new Error(JSON.stringify(result.error));
+                
+                currentUser = result.user;
+                showDashboard();
+            } catch (err) {
+                document.getElementById('auth-message').innerText = `Error: ${err.message}`;
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('user-display').innerText = currentUser.villainName;
+            
+            // Connect Real-Time Socket
+            socket = io(BACKEND_URL);
+            
+            // Listen for global alerts from the backend
+            socket.on('global_hero_alert', (sighting) => {
+                const banner = document.getElementById('alert-banner');
+                document.getElementById('alert-text').innerText = `${sighting.heroName} spotted at ${sighting.location}!`;
+                banner.style.display = 'block';
+                setTimeout(() => { banner.style.display = 'none'; }, 10000); // Hide after 10s
+            });
+
+            fetchPosts();
+        }
+
+        function reportHero() {
+            const heroName = document.getElementById('heroName').value;
+            const location = document.getElementById('heroLocation').value;
+            
+            // Send alert to the backend over Socket.IO
+            socket.emit('report_hero_sighting', {
+                reporterId: currentUser.id,
+                heroName: heroName,
+                location: location,
+                dangerLevel: 5
+            });
+
+            document.getElementById('heroName').value = '';
+            document.getElementById('heroLocation').value = '';
+        }
+
+        async function fetchPosts() {
+            const res = await fetch(`${BACKEND_URL}/api/posts`);
+            const posts = await res.json();
+            
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '';
+            
+            if (posts.length === 0) {
+                feed.innerHTML = '<p>Feed is empty. Get scheming.</p>';
+            }
+
+            posts.forEach(post => {
+                feed.innerHTML += `
+                    <div class="post">
+                        <strong>${post.author.villainName}</strong> (${post.author.villainClass})<br>
+                        ${post.content}
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
