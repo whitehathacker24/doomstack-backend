@@ -13,6 +13,9 @@ FROM node:18-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Install OpenSSL so Prisma can communicate with Postgres
+RUN apk add --no-cache openssl
+
 COPY package*.json ./
 RUN npm install --omit=dev
 
