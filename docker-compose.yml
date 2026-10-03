@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: doomstack_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: doomstack_admin
+      POSTGRES_PASSWORD: super_secret_evil_password
+      POSTGRES_DB: doomstack
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doomstack_admin -d doomstack"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: doomstack_api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: "postgresql://doomstack_admin:super_secret_evil_password@postgres:5432/doomstack?schema=public"
+      JWT_SECRET: "evil_mastermind_jwt_secret_key"
+      CLIENT_URL: "http://localhost:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
