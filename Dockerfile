@@ -29,3 +29,4 @@ CMD ["sh", "-c", "npx prisma db push --force-reset && node dist/index.js"]
 
 
 
+
