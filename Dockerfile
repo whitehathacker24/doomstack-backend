@@ -1,23 +1,22 @@
-# Stage 1: Build the TypeScript code
-FROM node:18-bullseye-slim AS builder
+FROM node:18-bullseye-slim
+
 WORKDIR /app
+
+# Install OpenSSL and other necessary dependencies for Prisma
+RUN apt-get update -y && apt-get install -y openssl python3 make g++
+
+# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
-COPY prisma ./prisma/
+
+# Copy the rest of your app source code including prisma folder
 COPY . .
+
+# Generate Prisma client
 RUN npx prisma generate
-RUN npm run build
 
-# Stage 2: Run the production server
-FROM node:18-bullseye-slim AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-
-COPY package*.json ./
-RUN npm install --omit=dev
-
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/dist ./dist
-
+# Expose the port your app runs on
 EXPOSE 5000
-CMD ["npm", "start"]
+
+# Automatically push/deploy database tables on startup, then start the server
+CMD ["sh", "-c", "npx prisma db push && npm start"]
