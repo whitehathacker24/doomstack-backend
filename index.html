@@ -4,549 +4,470 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DOOMSTACK // Villainous Network Terminal</title>
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Socket.IO Client -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    .inp{width:100%;background:#000;border:1px solid #1f2937;border-radius:.25rem;padding:.5rem;color:#fff;font-size:.8rem}
+    .inp:focus{outline:none;border-color:#dc2626}
+    .card{background:#030712;border:1px solid #111827;border-radius:.5rem;padding:1rem}
+    .btn{background:#991b1b;color:#fff;font-weight:700;padding:.4rem .75rem;border-radius:.25rem;font-size:.75rem}
+    .btn:hover{background:#b91c1c}
+    .btn2{background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d;padding:.2rem .5rem;border-radius:.25rem;font-size:.7rem}
+    body.blood{background:#1a0000}
+  </style>
 </head>
 <body class="bg-black text-gray-200 font-mono min-h-screen selection:bg-red-900 selection:text-white">
+<div id="app" class="max-w-6xl mx-auto p-4 md:p-6">
 
-  <!-- App Container -->
-  <div id="app" class="max-w-6xl mx-auto p-4 md:p-6">
-
-    <!-- Header -->
-    <header class="border-b border-red-900/60 pb-4 mb-6 flex justify-between items-center">
-      <div>
-        <h1 class="text-3xl font-extrabold tracking-widest text-red-600">DOOMSTACK</h1>
-        <p class="text-xs text-gray-500 tracking-wider">SECURE VILLAINOUS OPERATIONS & THREAT FEED</p>
-      </div>
+  <header class="border-b border-red-900/60 pb-4 mb-6 flex justify-between items-center">
+    <div>
+      <h1 class="text-3xl font-extrabold tracking-widest text-red-600">DOOMSTACK</h1>
+      <p class="text-xs text-gray-500 tracking-wider">SECURE VILLAINOUS OPERATIONS & THREAT FEED</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="toggleTheme()" class="btn2" title="Theme">🩸 Theme</button>
       <div id="user-status" class="hidden text-right">
-        <span id="nav-username" class="text-sm font-bold text-red-400"></span>
-        <button onclick="logout()" class="ml-4 text-xs bg-red-950/60 hover:bg-red-900 text-red-300 border border-red-800 px-3 py-1 rounded transition">Disconnect</button>
+        <select id="status-select" onchange="setStatus()" class="bg-black border border-gray-800 text-xs rounded p-1">
+          <option value="online">🟢 Online</option><option value="plotting">😈 Plotting</option><option value="offline">⚫ Offline</option>
+        </select>
+        <span id="nav-username" class="text-sm font-bold text-red-400 ml-2"></span>
+        <button onclick="logout()" class="ml-2 btn2">Disconnect</button>
       </div>
-    </header>
-
-    <!-- AUTHENTICATION VIEW -->
-    <div id="auth-view" class="max-w-md mx-auto bg-gray-950 border border-red-950 p-6 rounded-lg shadow-2xl mt-10">
-      <div class="flex border-b border-gray-800 mb-6">
-        <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 pb-2 font-bold text-red-500 border-b-2 border-red-600">Log In</button>
-        <button id="tab-signup" onclick="switchAuthTab('signup')" class="flex-1 pb-2 font-bold text-gray-500">Sign Up</button>
-      </div>
-
-      <!-- Login Form -->
-      <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
-        <div>
-          <label class="block text-xs text-gray-400 uppercase mb-1">Username or Email</label>
-          <input type="text" id="login-identifier" required class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 uppercase mb-1">Password</label>
-          <input type="password" id="login-password" required class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
-        </div>
-        <button type="submit" class="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2 rounded transition text-sm tracking-wider">ACCESS TERMINAL</button>
-      </form>
-
-      <!-- Signup Form -->
-      <form id="form-signup" onsubmit="handleSignup(event)" class="space-y-3 hidden">
-        <div>
-          <label class="block text-xs text-gray-400 uppercase mb-1">Villain Name</label>
-          <input type="text" id="signup-villainName" required class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-xs text-gray-400 uppercase mb-1">Username</label>
-            <input type="text" id="signup-username" required class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-400 uppercase mb-1">Villain Class</label>
-            <select id="signup-villainClass" class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
-              <option value="HENCHMAN">Henchman</option>
-              <option value="MASTERMIND">Mastermind</option>
-              <option value="MAD_SCIENTIST">Mad Scientist</option>
-              <option value="CRIME_LORD">Crime Lord</option>
-              <option value="SUPER_VILLAIN">Super Villain</option>
-              <option value="CORRUPT_CEO">Corrupt CEO</option>
-              <option value="MERCENARY">Mercenary</option>
-              <option value="OVERLORD">Overlord</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 uppercase mb-1">Secure Email</label>
-          <input type="email" id="signup-email" required class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 uppercase mb-1">Password (Min 6 chars)</label>
-          <input type="password" id="signup-password" required minlength="6" class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 uppercase mb-1">Lair Location</label>
-          <input type="text" id="signup-lairLocation" required class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
-        </div>
-        <button type="submit" class="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2 rounded transition text-sm tracking-wider mt-2">SUBMIT REGISTRATION</button>
-      </form>
-
-      <div id="auth-error" class="mt-4 text-red-500 text-xs text-center hidden"></div>
     </div>
+  </header>
 
-    <!-- DASHBOARD VIEW -->
-    <div id="dashboard-view" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      <!-- Left Column: Direct Messaging & Scrollable Directory -->
-      <div class="lg:col-span-2 space-y-6">
-
-        <!-- Direct Messaging Box -->
-        <div class="bg-gray-950 border border-gray-900 rounded-lg p-4 shadow-lg">
-          <h2 class="text-lg font-bold text-red-500 mb-3 flex items-center">
-            <span class="w-2 h-2 bg-red-600 rounded-full animate-pulse mr-2"></span> Secure Comms (Direct Messages)
-          </h2>
-
-          <!-- Scrollable Villain Directory Dropdown -->
-          <div class="mb-3">
-            <label class="block text-xs text-gray-400 uppercase mb-1">Select Target Villain:</label>
-            <select id="villain-dropdown" onchange="setActiveChatRecipient()" class="w-full bg-black border border-gray-800 text-white p-2 rounded text-sm max-h-40 overflow-y-auto focus:outline-none focus:border-red-600">
-              <option value="">-- Loading Directory... --</option>
-            </select>
-          </div>
-
-          <!-- Chat Messages Scroll Container -->
-          <div id="chat-messages" class="h-64 overflow-y-auto bg-black/70 border border-gray-900 p-3 rounded mb-3 flex flex-col space-y-2 text-sm">
-            <div class="text-gray-600 text-center italic my-auto">Select a villain from the directory above to begin secure transmission.</div>
-          </div>
-
-          <!-- Input & Image Upload Controls -->
-          <div class="flex items-center space-x-2">
-            <input type="text" id="chat-input" placeholder="Type secure dispatch..." class="flex-1 bg-black border border-gray-800 text-white p-2 rounded text-sm focus:outline-none focus:border-red-600" onkeypress="if(event.key === 'Enter') sendDirectMessage()">
-
-            <!-- Hidden File Input -->
-            <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
-            <button onclick="document.getElementById('image-upload').click()" class="bg-gray-900 hover:bg-gray-800 text-gray-300 border border-gray-800 px-3 py-2 rounded text-xs transition">📷 Attach</button>
-
-            <button onclick="sendDirectMessage()" class="bg-red-800 hover:bg-red-700 text-white px-4 py-2 rounded text-xs font-bold transition">Transmit</button>
-          </div>
-          <div id="image-preview-indicator" class="text-xs text-red-400 mt-1 hidden">Image attached and ready for broadcast.</div>
-        </div>
-
-        <!-- Bounty Board -->
-        <div class="bg-gray-950 border border-gray-900 rounded-lg p-4 shadow-lg">
-          <div class="flex justify-between items-center mb-3">
-            <h2 class="text-lg font-bold text-red-500">💰 Bounty Board</h2>
-            <button onclick="toggleBountyModal()" class="text-xs bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 px-2 py-1 rounded">Post Contract</button>
-          </div>
-
-          <!-- Add Bounty Form (Hidden by default) -->
-          <form id="bounty-form" onsubmit="postBounty(event)" class="hidden bg-black/80 border border-gray-800 p-3 rounded mb-4 space-y-2 text-xs">
-            <input type="text" id="bounty-title" placeholder="Contract Title" required class="w-full bg-black border border-gray-800 p-2 rounded text-white">
-            <input type="text" id="bounty-target" placeholder="Target Hero/Entity" required class="w-full bg-black border border-gray-800 p-2 rounded text-white">
-            <textarea id="bounty-desc" placeholder="Contract Details / Objective" required class="w-full bg-black border border-gray-800 p-2 rounded text-white"></textarea>
-            <input type="text" id="bounty-reward" placeholder="Reward (e.g., $5,000,000 / Doomsday Device)" required class="w-full bg-black border border-gray-800 p-2 rounded text-white">
-            <button type="submit" class="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-1.5 rounded">Broadcast Contract</button>
-          </form>
-
-          <!-- Bounties List -->
-          <div id="bounties-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
-            <div class="text-gray-600 text-center italic text-xs py-4">No active contracts found.</div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Right Column: Global Hero Threat Feed -->
-      <div class="space-y-6">
-
-        <div class="bg-gray-950 border border-gray-900 rounded-lg p-4 shadow-lg">
-          <h2 class="text-lg font-bold text-red-500 mb-3">🚨 Global Threat Feed</h2>
-
-          <!-- Report Hero Form -->
-          <form onsubmit="reportHeroSighting(event)" class="bg-black/80 border border-gray-800 p-3 rounded mb-4 space-y-2 text-xs">
-            <p class="font-bold text-gray-400 mb-1">Report Hero Sighting</p>
-            <input type="text" id="hero-name" placeholder="Hero Name (e.g., Captain Justice)" required class="w-full bg-black border border-gray-800 p-2 rounded text-white">
-            <input type="text" id="hero-location" placeholder="Last Seen Location" required class="w-full bg-black border border-gray-800 p-2 rounded text-white">
-            <select id="hero-danger" class="w-full bg-black border border-gray-800 p-2 rounded text-white">
-              <option value="1">Danger Level 1 (Nuisance)</option>
-              <option value="2">Danger Level 2 (Moderate Threat)</option>
-              <option value="3">Danger Level 3 (Severe Hazard)</option>
-              <option value="5">Danger Level 5 (Extinction Level)</option>
-            </select>
-            <button type="submit" class="w-full bg-red-950 hover:bg-red-900 text-red-200 border border-red-800 font-bold py-1 rounded">Broadcast Alert</button>
-          </form>
-
-          <!-- Sightings Stream -->
-          <div id="threat-feed" class="space-y-2 max-h-72 overflow-y-auto pr-1 text-xs">
-            <div class="text-gray-600 text-center italic">Scanning for hero anomalies...</div>
-          </div>
-        </div>
-
-      </div>
-
+  <!-- AUTH -->
+  <div id="auth-view" class="max-w-md mx-auto card border-red-950 shadow-2xl mt-10">
+    <div class="flex border-b border-gray-800 mb-6">
+      <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 pb-2 font-bold text-red-500 border-b-2 border-red-600">Log In</button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')" class="flex-1 pb-2 font-bold text-gray-500">Sign Up</button>
     </div>
-
+    <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+      <div><label class="block text-xs text-gray-400 uppercase mb-1">Username or Email</label><input type="text" id="login-identifier" required class="inp"></div>
+      <div><label class="block text-xs text-gray-400 uppercase mb-1">Password</label><input type="password" id="login-password" required class="inp"></div>
+      <button type="submit" class="btn w-full py-2 tracking-wider">ACCESS TERMINAL</button>
+    </form>
+    <form id="form-signup" onsubmit="handleSignup(event)" class="space-y-3 hidden">
+      <div><label class="block text-xs text-gray-400 uppercase mb-1">Villain Name</label><input type="text" id="signup-villainName" required class="inp"></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs text-gray-400 uppercase mb-1">Username</label><input type="text" id="signup-username" required class="inp"></div>
+        <div><label class="block text-xs text-gray-400 uppercase mb-1">Villain Class</label>
+          <select id="signup-villainClass" class="inp">
+            <option value="HENCHMAN">Henchman</option><option value="MASTERMIND">Mastermind</option><option value="MAD_SCIENTIST">Mad Scientist</option>
+            <option value="CRIME_LORD">Crime Lord</option><option value="SUPER_VILLAIN">Super Villain</option><option value="CORRUPT_CEO">Corrupt CEO</option>
+            <option value="MERCENARY">Mercenary</option><option value="OVERLORD">Overlord</option>
+          </select></div>
+      </div>
+      <div><label class="block text-xs text-gray-400 uppercase mb-1">Secure Email</label><input type="email" id="signup-email" required class="inp"></div>
+      <div><label class="block text-xs text-gray-400 uppercase mb-1">Password (Min 6 chars)</label><input type="password" id="signup-password" required minlength="6" class="inp"></div>
+      <div><label class="block text-xs text-gray-400 uppercase mb-1">Lair Location</label><input type="text" id="signup-lairLocation" required class="inp"></div>
+      <button type="submit" class="btn w-full py-2 tracking-wider mt-2">SUBMIT REGISTRATION</button>
+    </form>
+    <div id="auth-error" class="mt-4 text-red-500 text-xs text-center hidden"></div>
   </div>
 
-  <!-- Client JavaScript Logic -->
-  <script>
-    // Uses your local backend when the page is served from localhost, the live Render server otherwise
-    const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
-    const BACKEND_URL = IS_LOCAL ? 'http://localhost:4000' : 'https://doomstack-backend.onrender.com';
-    let socket = null;
-    let currentUser = null;
-    let activeRecipientId = null;
-    let attachedImageData = null;
+  <!-- DASHBOARD -->
+  <div id="dashboard-view" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
 
-    // Initialize Auth Tab Switcher
-    function switchAuthTab(tab) {
-      const loginForm = document.getElementById('form-login');
-      const signupForm = document.getElementById('form-signup');
-      const tabLogin = document.getElementById('tab-login');
-      const tabSignup = document.getElementById('tab-signup');
-
-      if (tab === 'login') {
-        loginForm.classList.remove('hidden');
-        signupForm.classList.add('hidden');
-        tabLogin.className = "flex-1 pb-2 font-bold text-red-500 border-b-2 border-red-600";
-        tabSignup.className = "flex-1 pb-2 font-bold text-gray-500";
-      } else {
-        loginForm.classList.add('hidden');
-        signupForm.classList.remove('hidden');
-        tabSignup.className = "flex-1 pb-2 font-bold text-red-500 border-b-2 border-red-600";
-        tabLogin.className = "flex-1 pb-2 font-bold text-gray-500";
-      }
-    }
-
-    function showAuthError(message) {
-      const errBox = document.getElementById('auth-error');
-      errBox.textContent = message;
-      errBox.classList.remove('hidden');
-    }
-
-    // Login Handler
-    async function handleLogin(e) {
-      e.preventDefault();
-      const identifier = document.getElementById('login-identifier').value;
-      const password = document.getElementById('login-password').value;
-
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier, password })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Authentication failed');
-
-        setSession(data.user);
-      } catch (err) {
-        // "Failed to fetch" usually means the server is asleep (Render free tier) or unreachable
-        showAuthError(err.message === 'Failed to fetch'
-          ? 'Cannot reach the server. If it is on Render\'s free tier, it may be waking up - wait ~60s and try again.'
-          : err.message);
-      }
-    }
-
-    // Signup Handler
-    async function handleSignup(e) {
-      e.preventDefault();
-      const payload = {
-        villainName: document.getElementById('signup-villainName').value,
-        username: document.getElementById('signup-username').value,
-        villainClass: document.getElementById('signup-villainClass').value,
-        email: document.getElementById('signup-email').value,
-        password: document.getElementById('signup-password').value,
-        lairLocation: document.getElementById('signup-lairLocation').value,
-      };
-
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/auth/signup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
-
-        setSession(data.user);
-      } catch (err) {
-        showAuthError(err.message === 'Failed to fetch'
-          ? 'Cannot reach the server. If it is on Render\'s free tier, it may be waking up - wait ~60s and try again.'
-          : err.message);
-      }
-    }
-
-    // Session Initialization & Socket Connection
-    function setSession(user) {
-      currentUser = user;
-      localStorage.setItem('doomstack_user', JSON.stringify(user));
-
-      document.getElementById('auth-view').classList.add('hidden');
-      document.getElementById('dashboard-view').classList.remove('hidden');
-      document.getElementById('user-status').classList.remove('hidden');
-      document.getElementById('nav-username').textContent = `${user.villainName} (@${user.username})`;
-
-      initSocket();
-      loadVillainDirectory();
-      loadBounties();
-      loadHeroSightings();
-    }
-
-    function logout() {
-      localStorage.removeItem('doomstack_user');
-      if (socket) socket.disconnect();
-      location.reload();
-    }
-
-    // Auto-login if stored in localStorage
-    window.addEventListener('DOMContentLoaded', () => {
-      const saved = localStorage.getItem('doomstack_user');
-      if (saved) {
-        try { setSession(JSON.parse(saved)); } catch(e) { localStorage.removeItem('doomstack_user'); }
-      }
-    });
-
-    // Socket.IO Setup with Debugging
-    function initSocket() {
-      if (socket) socket.disconnect();
-
-      // No cookies are used (login lives in localStorage), so credentials aren't needed.
-      // Sending them would force the server to name this exact origin instead of '*'.
-      socket = io(BACKEND_URL);
-
-      socket.on('connect', () => {
-        console.log('[SOCKET CONNECTED]:', socket.id);
-        // Runs on every (re)connect so the personal room is always rejoined
-        socket.emit('join_user_room', currentUser.id);
-      });
-
-      socket.on('connect_error', (err) => {
-        console.error('[SOCKET CONNECTION ERROR]:', err);
-      });
-
-      socket.on('global_hero_alert', (sighting) => {
-        appendHeroSighting(sighting);
-      });
-
-      // Only show the message if it belongs to the conversation that is currently open.
-      // The server echoes your own messages back to you, so we do NOT append locally when sending.
-      socket.on('receive_direct_message', (msg) => {
-        const isThisChat =
-          (msg.senderId === activeRecipientId && msg.recipientId === currentUser.id) ||
-          (msg.senderId === currentUser.id && msg.recipientId === activeRecipientId);
-        if (isThisChat) appendChatMessage(msg);
-      });
-
-      socket.on('new_bounty_posted', (bounty) => {
-        loadBounties();
-      });
-    }
-
-    // Load Villain Directory Dropdown
-    async function loadVillainDirectory() {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/users`);
-        const users = await res.json();
-        const select = document.getElementById('villain-dropdown');
-
-        select.innerHTML = '<option value="">-- Select a Villain to Chat --</option>' +
-          users.filter(u => u.id !== currentUser.id)
-               .map(u => `<option value="${u.id}">${escapeHtml(u.villainName)} (@${escapeHtml(u.username)}) [${u.villainClass}]</option>`)
-               .join('');
-      } catch (err) {
-        console.error('Failed to load users:', err);
-      }
-    }
-
-    // Load message history from backend when selecting recipient
-    async function setActiveChatRecipient() {
-      activeRecipientId = document.getElementById('villain-dropdown').value;
-      const chatBox = document.getElementById('chat-messages');
-
-      if (!activeRecipientId) {
-        chatBox.innerHTML = '<div class="text-gray-500 text-center italic my-auto">Select a villain from the directory above to begin secure transmission.</div>';
-        return;
-      }
-
-      chatBox.innerHTML = '<div class="text-gray-500 text-center italic my-auto">Decrypting secure history...</div>';
-
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/messages/${currentUser.id}/${activeRecipientId}`);
-        const messages = await res.json();
-
-        chatBox.innerHTML = '';
-        if (!messages.length) {
-          chatBox.innerHTML = '<div class="text-gray-500 text-center italic my-auto">No prior transmissions with this entity. Send your first dispatch below.</div>';
-        } else {
-          messages.forEach(msg => appendChatMessage(msg));
-        }
-      } catch (err) {
-        chatBox.innerHTML = '<div class="text-red-500 text-center italic my-auto">Failed to load secure history.</div>';
-      }
-    }
-
-    // Image Upload Handler
-    function handleImageSelection(e) {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          attachedImageData = reader.result;
-          document.getElementById('image-preview-indicator').classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-
-    // Send Direct Message
-    function sendDirectMessage() {
-      const content = document.getElementById('chat-input').value;
-      if (!activeRecipientId) {
-        alert('Please select a recipient from the directory first.');
-        return;
-      }
-      if (!content && !attachedImageData) return;
-      if (!socket || !socket.connected) {
-        alert('Not connected to the server yet. Wait a moment and try again.');
-        return;
-      }
-
-      const messagePayload = {
-        senderId: currentUser.id,
-        recipientId: activeRecipientId,
-        content: content,
-        imageUrl: attachedImageData
-      };
-
-      // The server saves the message and sends it back to this user's room,
-      // where the 'receive_direct_message' handler displays it.
-      socket.emit('send_direct_message', messagePayload);
-
-      document.getElementById('chat-input').value = '';
-      attachedImageData = null;
-      document.getElementById('image-preview-indicator').classList.add('hidden');
-      document.getElementById('image-upload').value = '';
-    }
-
-    function appendChatMessage(msg) {
-      const chatBox = document.getElementById('chat-messages');
-      if (chatBox.querySelector('.italic')) chatBox.innerHTML = '';
-
-      const isMe = msg.senderId === currentUser.id;
-      const div = document.createElement('div');
-      div.className = `p-2 rounded max-w-[80%] ${isMe ? 'ml-auto bg-red-950/40 border border-red-900/40' : 'mr-auto bg-gray-900 border border-gray-800'}`;
-
-      let html = `<p class="text-xs text-gray-400 mb-0.5">${isMe ? 'You' : 'Target'}</p>`;
-      if (msg.content) html += `<p class="text-white">${escapeHtml(msg.content)}</p>`;
-      if (msg.imageUrl) html += `<img src="${msg.imageUrl}" class="mt-2 max-h-40 rounded border border-gray-800">`;
-
-      div.innerHTML = html;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    // Hero Sightings & Threat Feed
-    async function loadHeroSightings() {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/sightings`);
-        const sightings = await res.json();
-        const feed = document.getElementById('threat-feed');
-        feed.innerHTML = sightings.length ? '' : '<div class="text-gray-600 text-center italic">No active hero threats recorded.</div>';
-        sightings.forEach(s => appendHeroSighting(s));
-      } catch (err) {
-        console.error('Failed to load sightings:', err);
-      }
-    }
-
-    function reportHeroSighting(e) {
-      e.preventDefault();
-      const heroName = document.getElementById('hero-name').value;
-      const location = document.getElementById('hero-location').value;
-      const dangerLevel = document.getElementById('hero-danger').value;
-
-      socket.emit('report_hero_sighting', {
-        reporterId: currentUser.id,
-        heroName,
-        location,
-        dangerLevel
-      });
-
-      document.getElementById('hero-name').value = '';
-      document.getElementById('hero-location').value = '';
-    }
-
-    function appendHeroSighting(s) {
-      const feed = document.getElementById('threat-feed');
-      if (feed.querySelector('.italic')) feed.innerHTML = '';
-
-      const div = document.createElement('div');
-      div.className = "bg-black border border-red-950 p-2.5 rounded";
-      div.innerHTML = `
-        <div class="flex justify-between text-red-400 font-bold">
-          <span>🚨 ${escapeHtml(s.heroName)}</span>
-          <span class="text-red-600">Danger: Lvl ${s.dangerLevel}</span>
+      <!-- Messaging -->
+      <div class="card">
+        <h2 class="text-lg font-bold text-red-500 mb-3"><span class="inline-block w-2 h-2 bg-red-600 rounded-full animate-pulse mr-2"></span>Secure Comms</h2>
+        <label class="block text-xs text-gray-400 uppercase mb-1">Select Target Villain:</label>
+        <select id="villain-dropdown" onchange="setActiveChatRecipient()" class="inp mb-3"><option value="">-- Loading Directory... --</option></select>
+        <div id="chat-messages" class="h-64 overflow-y-auto bg-black/70 border border-gray-900 p-3 rounded mb-1 flex flex-col space-y-2 text-sm">
+          <div class="text-gray-600 text-center italic my-auto">Select a villain from the directory above to begin secure transmission.</div>
         </div>
-        <p class="text-gray-300 mt-1">Location: ${escapeHtml(s.location)}</p>
-        <span class="text-[10px] text-gray-600">${new Date(s.createdAt).toLocaleTimeString()}</span>
-      `;
-      feed.prepend(div);
-    }
+        <div id="typing-indicator" class="text-xs text-red-400 h-4 mb-1"></div>
+        <div class="flex items-center space-x-2">
+          <input type="text" id="chat-input" placeholder="Type secure dispatch..." class="inp flex-1" onkeypress="if(event.key==='Enter')sendDirectMessage()" oninput="sendTyping()">
+          <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
+          <button onclick="document.getElementById('image-upload').click()" class="btn2">📷 Attach</button>
+          <button onclick="sendDirectMessage()" class="btn">Transmit</button>
+        </div>
+        <div id="image-preview-indicator" class="text-xs text-red-400 mt-1 hidden">Image attached and ready for broadcast.</div>
+      </div>
 
-    // Bounty Board
-    function toggleBountyModal() {
-      const form = document.getElementById('bounty-form');
-      form.classList.toggle('hidden');
-    }
+      <!-- Evil Feed -->
+      <div class="card">
+        <h2 class="text-lg font-bold text-red-500 mb-3">😈 Evil Feed</h2>
+        <div class="flex gap-2 mb-3">
+          <input id="post-input" class="inp flex-1" placeholder="Announce your latest scheme..." maxlength="1000" onkeypress="if(event.key==='Enter')submitPost()">
+          <button onclick="submitPost()" class="btn">Post</button>
+        </div>
+        <div id="posts-list" class="space-y-3 max-h-96 overflow-y-auto pr-1 text-xs"></div>
+      </div>
 
-    async function loadBounties() {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/bounties`);
-        const bounties = await res.json();
-        const list = document.getElementById('bounties-list');
-
-        list.innerHTML = bounties.length ? bounties.map(b => `
-          <div class="bg-black border border-gray-800 p-2.5 rounded text-xs">
-            <div class="flex justify-between font-bold text-red-400">
-              <span>${escapeHtml(b.title)}</span>
-              <span class="text-emerald-400">${escapeHtml(b.reward)}</span>
-            </div>
-            <p class="text-gray-300 mt-1">Target: ${escapeHtml(b.target)}</p>
-            <p class="text-gray-500 mt-0.5">${escapeHtml(b.description)}</p>
+      <!-- Bounty Board -->
+      <div class="card">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold text-red-500">💰 Bounty Board</h2>
+          <div class="flex gap-2">
+            <select id="bounty-filter" onchange="loadBounties()" class="bg-black border border-gray-800 text-xs rounded p-1">
+              <option value="">All</option><option>SABOTAGE</option><option>THEFT</option><option>RECON</option><option>GENERAL</option>
+            </select>
+            <button onclick="document.getElementById('bounty-form').classList.toggle('hidden')" class="btn2">Post Contract</button>
           </div>
-        `).join('') : '<div class="text-gray-600 text-center italic text-xs py-4">No active contracts found.</div>';
-      } catch (err) {
-        console.error('Failed to load bounties:', err);
-      }
-    }
+        </div>
+        <form id="bounty-form" onsubmit="postBounty(event)" class="hidden bg-black/80 border border-gray-800 p-3 rounded mb-4 space-y-2 text-xs">
+          <input id="bounty-title" placeholder="Contract Title" required class="inp">
+          <input id="bounty-target" placeholder="Target Hero/Entity" required class="inp">
+          <textarea id="bounty-desc" placeholder="Contract Details / Objective" required class="inp"></textarea>
+          <input id="bounty-reward" placeholder="Reward (e.g., $5,000,000 / Doomsday Device)" required class="inp">
+          <div class="grid grid-cols-2 gap-2">
+            <select id="bounty-category" class="inp"><option>GENERAL</option><option>SABOTAGE</option><option>THEFT</option><option>RECON</option></select>
+            <input type="datetime-local" id="bounty-expires" class="inp" title="Expires (optional)">
+          </div>
+          <button type="submit" class="btn w-full">Broadcast Contract</button>
+        </form>
+        <div id="bounties-list" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+      </div>
+    </div>
 
-    async function postBounty(e) {
-      e.preventDefault();
-      const title = document.getElementById('bounty-title').value;
-      const target = document.getElementById('bounty-target').value;
-      const description = document.getElementById('bounty-desc').value;
-      const reward = document.getElementById('bounty-reward').value;
+    <!-- Right column -->
+    <div class="space-y-6">
+      <!-- Profile -->
+      <div class="card">
+        <h2 class="text-lg font-bold text-red-500 mb-3">🕴️ My Profile</h2>
+        <form onsubmit="saveProfile(event)" class="space-y-2 text-xs">
+          <input id="pf-villainName" class="inp" placeholder="Villain name" required>
+          <input id="pf-headline" class="inp" placeholder="Headline (e.g., World Domination Consultant)">
+          <input id="pf-catchphrase" class="inp" placeholder="Catchphrase">
+          <input id="pf-nemesis" class="inp" placeholder="Nemesis (arch-enemy hero)">
+          <button class="btn w-full">Save Profile</button>
+        </form>
+        <details class="mt-3 text-xs">
+          <summary class="cursor-pointer text-gray-400">Change password</summary>
+          <form onsubmit="changePassword(event)" class="space-y-2 mt-2">
+            <input type="password" id="pw-old" class="inp" placeholder="Current password" required>
+            <input type="password" id="pw-new" class="inp" placeholder="New password (min 6)" required minlength="6">
+            <button class="btn2 w-full">Update</button>
+          </form>
+        </details>
+      </div>
 
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/bounties`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, target, description, reward, creatorId: currentUser.id })
-        });
+      <!-- Threat Feed -->
+      <div class="card">
+        <h2 class="text-lg font-bold text-red-500 mb-3">🚨 Global Threat Feed</h2>
+        <form onsubmit="reportHeroSighting(event)" class="bg-black/80 border border-gray-800 p-3 rounded mb-4 space-y-2 text-xs">
+          <p class="font-bold text-gray-400">Report Hero Sighting</p>
+          <input id="hero-name" placeholder="Hero Name (e.g., Captain Justice)" required class="inp">
+          <input id="hero-location" placeholder="Last Seen Location" required class="inp">
+          <select id="hero-danger" class="inp">
+            <option value="1">Danger Level 1 (Nuisance)</option><option value="2">Danger Level 2 (Moderate Threat)</option>
+            <option value="3">Danger Level 3 (Severe Hazard)</option><option value="5">Danger Level 5 (Extinction Level)</option>
+          </select>
+          <button type="submit" class="btn2 w-full py-1">Broadcast Alert</button>
+        </form>
+        <div id="threat-feed" class="space-y-2 max-h-72 overflow-y-auto pr-1 text-xs"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+<script>
+  const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const BACKEND_URL = IS_LOCAL ? 'http://localhost:4000' : 'https://doomstack-backend.onrender.com';
+  let socket = null, currentUser = null, activeRecipientId = null, attachedImageData = null, typingTimer = null, lastTypingSent = 0;
+  const $ = id => document.getElementById(id);
+  const esc = s => !s ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  const api = (path, method = 'GET', body) => fetch(BACKEND_URL + path, {
+    method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined
+  }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(typeof d.error === 'string' ? d.error : JSON.stringify(d.error)); return d; });
+  const netErr = e => e.message === 'Failed to fetch' ? "Cannot reach the server. If it is on Render's free tier, it may be waking up - wait ~60s and try again." : e.message;
 
-        document.getElementById('bounty-title').value = '';
-        document.getElementById('bounty-target').value = '';
-        document.getElementById('bounty-desc').value = '';
-        document.getElementById('bounty-reward').value = '';
-        toggleBountyModal();
-        loadBounties();
-      } catch (err) {
-        alert(err.message);
-      }
-    }
+  function toggleTheme() { document.body.classList.toggle('blood'); localStorage.setItem('doomstack_theme', document.body.classList.contains('blood') ? 'blood' : 'dark'); }
+  if (localStorage.getItem('doomstack_theme') === 'blood') document.body.classList.add('blood');
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
-  </script>
+  function switchAuthTab(tab) {
+    const login = tab === 'login';
+    $('form-login').classList.toggle('hidden', !login);
+    $('form-signup').classList.toggle('hidden', login);
+    $('tab-login').className = 'flex-1 pb-2 font-bold ' + (login ? 'text-red-500 border-b-2 border-red-600' : 'text-gray-500');
+    $('tab-signup').className = 'flex-1 pb-2 font-bold ' + (login ? 'text-gray-500' : 'text-red-500 border-b-2 border-red-600');
+  }
+  function showAuthError(m) { const b = $('auth-error'); b.textContent = m; b.classList.remove('hidden'); }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    try { setSession((await api('/api/auth/login', 'POST', { identifier: $('login-identifier').value, password: $('login-password').value })).user); }
+    catch (err) { showAuthError(netErr(err)); }
+  }
+  async function handleSignup(e) {
+    e.preventDefault();
+    const f = k => $('signup-' + k).value;
+    try {
+      setSession((await api('/api/auth/signup', 'POST', {
+        villainName: f('villainName'), username: f('username'), villainClass: f('villainClass'),
+        email: f('email'), password: f('password'), lairLocation: f('lairLocation')
+      })).user);
+    } catch (err) { showAuthError(netErr(err)); }
+  }
+
+  function setSession(user) {
+    currentUser = user;
+    localStorage.setItem('doomstack_user', JSON.stringify(user));
+    $('auth-view').classList.add('hidden');
+    $('dashboard-view').classList.remove('hidden');
+    $('user-status').classList.remove('hidden');
+    $('nav-username').textContent = `${user.villainName} (@${user.username})`;
+    ['villainName', 'headline', 'catchphrase', 'nemesis'].forEach(k => $('pf-' + k).value = user[k] || '');
+    $('status-select').value = user.status && user.status !== 'offline' ? user.status : 'online';
+    initSocket(); loadVillainDirectory(); loadBounties(); loadHeroSightings(); loadPosts();
+  }
+
+  function logout() {
+    if (socket) socket.emit('set_status', { userId: currentUser.id, status: 'offline' });
+    localStorage.removeItem('doomstack_user');
+    setTimeout(() => { if (socket) socket.disconnect(); location.reload(); }, 150);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('doomstack_user');
+    if (saved) { try { setSession(JSON.parse(saved)); } catch (e) { localStorage.removeItem('doomstack_user'); } }
+  });
+
+  function initSocket() {
+    if (socket) socket.disconnect();
+    socket = io(BACKEND_URL);
+    socket.on('connect', () => {
+      socket.emit('join_user_room', currentUser.id);
+      socket.emit('set_status', { userId: currentUser.id, status: $('status-select').value });
+    });
+    socket.on('connect_error', err => console.error('[SOCKET CONNECTION ERROR]:', err));
+    socket.on('global_hero_alert', appendHeroSighting);
+    socket.on('sighting_updated', loadHeroSightings);
+    socket.on('new_bounty_posted', loadBounties);
+    socket.on('new_post', loadPosts);
+    socket.on('status_changed', loadVillainDirectory);
+    socket.on('receive_direct_message', msg => {
+      const isThisChat = (msg.senderId === activeRecipientId && msg.recipientId === currentUser.id) ||
+                         (msg.senderId === currentUser.id && msg.recipientId === activeRecipientId);
+      if (isThisChat) {
+        appendChatMessage(msg);
+        if (msg.senderId === activeRecipientId) socket.emit('mark_read', { readerId: currentUser.id, otherId: activeRecipientId });
+      } else if (msg.recipientId === currentUser.id) loadVillainDirectory(); // refresh unread badges
+    });
+    socket.on('message_updated', () => activeRecipientId && setActiveChatRecipient(true));
+    socket.on('message_deleted', () => activeRecipientId && setActiveChatRecipient(true));
+    socket.on('messages_read', ({ by }) => { if (by === activeRecipientId) setActiveChatRecipient(true); });
+    socket.on('typing', ({ from, name }) => {
+      if (from !== activeRecipientId) return;
+      $('typing-indicator').textContent = `${name} is scheming...`;
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => $('typing-indicator').textContent = '', 1500);
+    });
+  }
+
+  function setStatus() {
+    const status = $('status-select').value;
+    currentUser.status = status;
+    localStorage.setItem('doomstack_user', JSON.stringify(currentUser));
+    socket.emit('set_status', { userId: currentUser.id, status });
+  }
+
+  // ---------- Directory & Chat ----------
+  const statusDot = { online: '🟢', plotting: '😈', offline: '⚫' };
+  async function loadVillainDirectory() {
+    try {
+      const [users, unread] = await Promise.all([api('/api/users'), api('/api/unread/' + currentUser.id)]);
+      const keep = activeRecipientId;
+      $('villain-dropdown').innerHTML = '<option value="">-- Select a Villain to Chat --</option>' +
+        users.filter(u => u.id !== currentUser.id).map(u =>
+          `<option value="${u.id}">${statusDot[u.status] || '⚫'} ${esc(u.villainName)} (@${esc(u.username)}) [${u.villainClass}]${unread[u.id] ? ` 🔴${unread[u.id]}` : ''}${u.catchphrase ? ` — "${esc(u.catchphrase)}"` : ''}</option>`).join('');
+      if (keep) $('villain-dropdown').value = keep;
+    } catch (err) { console.error('Failed to load users:', err); }
+  }
+
+  async function setActiveChatRecipient(silent) {
+    activeRecipientId = $('villain-dropdown').value;
+    const box = $('chat-messages');
+    if (!activeRecipientId) { box.innerHTML = '<div class="text-gray-500 text-center italic my-auto">Select a villain from the directory above to begin secure transmission.</div>'; return; }
+    if (silent !== true) box.innerHTML = '<div class="text-gray-500 text-center italic my-auto">Decrypting secure history...</div>';
+    try {
+      const messages = await api(`/api/messages/${currentUser.id}/${activeRecipientId}`);
+      box.innerHTML = '';
+      if (!messages.length) box.innerHTML = '<div class="text-gray-500 text-center italic my-auto">No prior transmissions with this entity. Send your first dispatch below.</div>';
+      else messages.forEach(appendChatMessage);
+      socket.emit('mark_read', { readerId: currentUser.id, otherId: activeRecipientId });
+      if (silent !== true) loadVillainDirectory();
+    } catch { box.innerHTML = '<div class="text-red-500 text-center italic my-auto">Failed to load secure history.</div>'; }
+  }
+
+  function handleImageSelection(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const r = new FileReader();
+    r.onloadend = () => { attachedImageData = r.result; $('image-preview-indicator').classList.remove('hidden'); };
+    r.readAsDataURL(file);
+  }
+
+  function sendTyping() {
+    if (!activeRecipientId || Date.now() - lastTypingSent < 800) return;
+    lastTypingSent = Date.now();
+    socket.emit('typing', { from: currentUser.id, to: activeRecipientId, name: currentUser.villainName });
+  }
+
+  function sendDirectMessage() {
+    const content = $('chat-input').value;
+    if (!activeRecipientId) return alert('Please select a recipient from the directory first.');
+    if (!content && !attachedImageData) return;
+    if (!socket || !socket.connected) return alert('Not connected to the server yet. Wait a moment and try again.');
+    socket.emit('send_direct_message', { senderId: currentUser.id, recipientId: activeRecipientId, content, imageUrl: attachedImageData });
+    $('chat-input').value = ''; attachedImageData = null;
+    $('image-preview-indicator').classList.add('hidden'); $('image-upload').value = '';
+  }
+
+  function react(id, emoji) { socket.emit('react_message', { messageId: id, userId: currentUser.id, emoji }); }
+  function delMsg(id) { socket.emit('delete_message', { messageId: id, userId: currentUser.id }); }
+
+  function appendChatMessage(msg) {
+    const box = $('chat-messages');
+    if (box.querySelector('.italic')) box.innerHTML = '';
+    const isMe = msg.senderId === currentUser.id;
+    const div = document.createElement('div');
+    div.className = `p-2 rounded max-w-[80%] ${isMe ? 'ml-auto bg-red-950/40 border border-red-900/40' : 'mr-auto bg-gray-900 border border-gray-800'}`;
+    const rx = Object.entries(msg.reactions || {}).filter(([, u]) => u.length).map(([e, u]) => `${e}${u.length}`).join(' ');
+    let html = `<p class="text-xs text-gray-400 mb-0.5">${isMe ? 'You' : 'Target'}</p>`;
+    if (msg.content) html += `<p class="text-white">${esc(msg.content)}</p>`;
+    if (msg.imageUrl) html += `<img src="${msg.imageUrl}" class="mt-2 max-h-40 rounded border border-gray-800">`;
+    html += `<div class="flex items-center gap-2 mt-1 text-[10px] text-gray-500">
+      ${['😈', '🔥', '💀'].map(e => `<button onclick="react('${msg.id}','${e}')">${e}</button>`).join('')}
+      ${rx ? `<span class="text-gray-300">${rx}</span>` : ''}
+      ${isMe ? `<span>${msg.readAt ? '✓✓ Read' : '✓ Sent'}</span><button onclick="delMsg('${msg.id}')" class="text-red-700">delete</button>` : ''}
+    </div>`;
+    div.innerHTML = html;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // ---------- Profile ----------
+  async function saveProfile(e) {
+    e.preventDefault();
+    try {
+      const { user } = await api('/api/users/' + currentUser.id, 'PATCH', {
+        villainName: $('pf-villainName').value, headline: $('pf-headline').value,
+        catchphrase: $('pf-catchphrase').value, nemesis: $('pf-nemesis').value
+      });
+      currentUser = { ...currentUser, ...user };
+      localStorage.setItem('doomstack_user', JSON.stringify(currentUser));
+      $('nav-username').textContent = `${currentUser.villainName} (@${currentUser.username})`;
+      loadVillainDirectory();
+      alert('Profile updated.');
+    } catch (err) { alert(netErr(err)); }
+  }
+  async function changePassword(e) {
+    e.preventDefault();
+    try {
+      await api(`/api/users/${currentUser.id}/password`, 'POST', { oldPassword: $('pw-old').value, newPassword: $('pw-new').value });
+      $('pw-old').value = ''; $('pw-new').value = ''; alert('Password changed.');
+    } catch (err) { alert(netErr(err)); }
+  }
+
+  // ---------- Feed ----------
+  async function loadPosts() {
+    try {
+      const posts = await api('/api/posts');
+      $('posts-list').innerHTML = posts.length ? posts.map(p => {
+        const liked = p.likes.some(l => l.userId === currentUser.id);
+        return `<div class="bg-black border border-gray-800 p-2.5 rounded">
+          <div class="text-red-400 font-bold">${esc(p.author.villainName)} <span class="text-gray-600 font-normal">@${esc(p.author.username)} · ${new Date(p.createdAt).toLocaleString()}</span></div>
+          <p class="text-gray-200 my-1">${esc(p.content)}</p>
+          <button onclick="likePost('${p.id}')" class="${liked ? 'text-red-400' : 'text-gray-500'}">😈 Evil Nod (${p._count.likes})</button>
+          <div class="mt-1 space-y-0.5">${p.comments.map(c => `<p class="text-gray-400"><b>${esc(c.author.villainName)}:</b> ${esc(c.content)}</p>`).join('')}</div>
+          <input class="inp mt-1" placeholder="Comment..." onkeypress="if(event.key==='Enter')commentPost('${p.id}',this)">
+        </div>`;
+      }).join('') : '<div class="text-gray-600 text-center italic">No schemes announced yet.</div>';
+    } catch (err) { console.error('Failed to load feed:', err); }
+  }
+  async function submitPost() {
+    const content = $('post-input').value.trim();
+    if (!content) return;
+    try { await api('/api/posts', 'POST', { authorId: currentUser.id, content }); $('post-input').value = ''; loadPosts(); }
+    catch (err) { alert(netErr(err)); }
+  }
+  async function likePost(id) { await api(`/api/posts/${id}/like`, 'POST', { userId: currentUser.id }); loadPosts(); }
+  async function commentPost(id, el) {
+    if (!el.value.trim()) return;
+    await api(`/api/posts/${id}/comments`, 'POST', { authorId: currentUser.id, content: el.value }); loadPosts();
+  }
+
+  // ---------- Threat Feed ----------
+  async function loadHeroSightings() {
+    try {
+      const sightings = await api('/api/sightings');
+      $('threat-feed').innerHTML = sightings.length ? '' : '<div class="text-gray-600 text-center italic">No active hero threats recorded.</div>';
+      sightings.reverse().forEach(appendHeroSighting);
+    } catch (err) { console.error('Failed to load sightings:', err); }
+  }
+  function reportHeroSighting(e) {
+    e.preventDefault();
+    socket.emit('report_hero_sighting', {
+      reporterId: currentUser.id, heroName: $('hero-name').value, location: $('hero-location').value, dangerLevel: $('hero-danger').value
+    });
+    $('hero-name').value = ''; $('hero-location').value = '';
+  }
+  async function verifySighting(id, confirm) { await api(`/api/sightings/${id}/verify`, 'POST', { confirm }); }
+  function appendHeroSighting(s) {
+    const feed = $('threat-feed');
+    if (feed.querySelector('.italic')) feed.innerHTML = '';
+    if (Number(s.dangerLevel) >= 5 && Date.now() - new Date(s.createdAt) < 10000) dangerAlert();
+    const div = document.createElement('div');
+    div.className = 'bg-black border border-red-950 p-2.5 rounded';
+    div.innerHTML = `
+      <div class="flex justify-between text-red-400 font-bold"><span>🚨 ${esc(s.heroName)}</span><span class="text-red-600">Danger: Lvl ${s.dangerLevel}</span></div>
+      <p class="text-gray-300 mt-1">Location: ${esc(s.location)}</p>
+      <div class="flex justify-between items-center mt-1 text-[10px] text-gray-600">
+        <span>${new Date(s.createdAt).toLocaleTimeString()}</span>
+        <span><button onclick="verifySighting('${s.id}',true)" class="text-emerald-500">✔ Confirm (${s.confirms || 0})</button>
+        <button onclick="verifySighting('${s.id}',false)" class="text-yellow-600 ml-2">✖ False alarm (${s.falseAlarms || 0})</button></span>
+      </div>`;
+    feed.prepend(div);
+  }
+  function dangerAlert() {
+    document.body.classList.add('animate-pulse');
+    setTimeout(() => document.body.classList.remove('animate-pulse'), 3000);
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)(), o = ctx.createOscillator();
+      o.type = 'square'; o.frequency.value = 880; o.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.4);
+    } catch (e) { /* browser may block audio before interaction */ }
+  }
+
+  // ---------- Bounties ----------
+  async function loadBounties() {
+    try {
+      const cat = $('bounty-filter').value;
+      const bounties = await api('/api/bounties' + (cat ? `?category=${cat}` : ''));
+      $('bounties-list').innerHTML = bounties.length ? bounties.map(b => {
+        const expired = b.expiresAt && new Date(b.expiresAt) < new Date();
+        const left = b.expiresAt && !expired ? Math.max(0, Math.round((new Date(b.expiresAt) - Date.now()) / 3600000)) + 'h left' : (expired ? 'EXPIRED' : '');
+        const action = b.status === 'OPEN' && !expired ? `<button onclick="claimBounty('${b.id}')" class="btn2">Claim</button>`
+          : b.status === 'IN_PROGRESS' && b.creatorId === currentUser.id ? `<button onclick="completeBounty('${b.id}')" class="btn2">Mark Complete</button>` : '';
+        return `<div class="bg-black border border-gray-800 p-2.5 rounded text-xs">
+          <div class="flex justify-between font-bold text-red-400"><span>${esc(b.title)} <span class="text-gray-600 font-normal">[${esc(b.category)}]</span></span><span class="text-emerald-400">${esc(b.reward)}</span></div>
+          <p class="text-gray-300 mt-1">Target: ${esc(b.target)}</p>
+          <p class="text-gray-500 mt-0.5">${esc(b.description)}</p>
+          <div class="flex justify-between items-center mt-1.5 text-[10px] text-gray-500">
+            <span>${b.status}${b.claimer ? ' · ' + esc(b.claimer.villainName) : ''} ${left}</span>${action}
+          </div></div>`;
+      }).join('') : '<div class="text-gray-600 text-center italic text-xs py-4">No active contracts found.</div>';
+    } catch (err) { console.error('Failed to load bounties:', err); }
+  }
+  async function postBounty(e) {
+    e.preventDefault();
+    const exp = $('bounty-expires').value;
+    try {
+      await api('/api/bounties', 'POST', {
+        title: $('bounty-title').value, target: $('bounty-target').value, description: $('bounty-desc').value,
+        reward: $('bounty-reward').value, category: $('bounty-category').value, creatorId: currentUser.id,
+        expiresAt: exp ? new Date(exp).toISOString() : undefined
+      });
+      ['title', 'target', 'desc', 'reward', 'expires'].forEach(k => $('bounty-' + k).value = '');
+      $('bounty-form').classList.add('hidden'); loadBounties();
+    } catch (err) { alert(netErr(err)); }
+  }
+  async function claimBounty(id) { try { await api(`/api/bounties/${id}/claim`, 'POST', { userId: currentUser.id }); loadBounties(); } catch (e) { alert(e.message); } }
+  async function completeBounty(id) { try { await api(`/api/bounties/${id}/complete`, 'POST', { userId: currentUser.id }); loadBounties(); } catch (e) { alert(e.message); } }
+</script>
 </body>
 </html>

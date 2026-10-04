@@ -28,18 +28,46 @@ model User {
   lairLocation String
   headline     String?
   avatarUrl    String?
+  catchphrase  String?
+  nemesis      String?
+  status       String         @default("offline") // online | offline | plotting
   createdAt    DateTime       @default(now())
   posts        Post[]
   sightings    HeroSighting[]
   sentMessages Message[]      @relation("SentMessages")
   recvMessages Message[]      @relation("RecvMessages")
-  bounties     Bounty[]
+  bounties     Bounty[]       @relation("Created")
+  claimed      Bounty[]       @relation("Claimed")
+  likes        Like[]
+  comments     Comment[]
 }
 
 model Post {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   content   String
   authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  likes     Like[]
+  comments  Comment[]
+  createdAt DateTime  @default(now())
+}
+
+model Like {
+  id     String @id @default(uuid())
+  postId String
+  userId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  postId    String
+  authorId  String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
 }
@@ -49,29 +77,38 @@ model HeroSighting {
   heroName    String
   location    String
   dangerLevel Int
+  confirms    Int      @default(0)
+  falseAlarms Int      @default(0)
   reporterId  String
   reporter    User     @relation(fields: [reporterId], references: [id])
   createdAt   DateTime @default(now())
 }
 
 model Message {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   senderId    String
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
   recipientId String
-  recipient   User     @relation("RecvMessages", fields: [recipientId], references: [id])
+  recipient   User      @relation("RecvMessages", fields: [recipientId], references: [id])
   content     String?
-  imageUrl    String?  // Supports uploaded images
-  createdAt   DateTime @default(now())
+  imageUrl    String?   // Supports uploaded images
+  readAt      DateTime?
+  reactions   Json      @default("{}") // { "😈": ["userId"] }
+  createdAt   DateTime  @default(now())
 }
 
 model Bounty {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   target      String
   description String
   reward      String
+  category    String    @default("GENERAL") // SABOTAGE | THEFT | RECON | GENERAL
+  status      String    @default("OPEN")    // OPEN | IN_PROGRESS | COMPLETED
+  expiresAt   DateTime?
   creatorId   String
-  creator     User     @relation(fields: [creatorId], references: [id])
-  createdAt   DateTime @default(now())
+  creator     User      @relation("Created", fields: [creatorId], references: [id])
+  claimerId   String?
+  claimer     User?     @relation("Claimed", fields: [claimerId], references: [id])
+  createdAt   DateTime  @default(now())
 }
