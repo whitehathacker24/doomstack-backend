@@ -24,4 +24,4 @@ ENV NODE_ENV=production
 
 # Sync the database schema, THEN start the application.
 # No --accept-data-loss: if a schema change would drop data, db push fails loudly instead of wiping it.
-CMD ["sh", "-c", "npx prisma db push --force-reset && node dist/index.js"]
+sh -c "npx prisma db push --force-reset && node dist/index.js"
