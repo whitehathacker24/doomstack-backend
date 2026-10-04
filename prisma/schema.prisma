@@ -8,6 +8,8 @@ generator client {
 }
 
 enum VillainClass {
+  HENCHMAN
+  MASTERMIND
   MAD_SCIENTIST
   CRIME_LORD
   SUPER_VILLAIN
@@ -17,20 +19,20 @@ enum VillainClass {
 }
 
 model User {
-  id           String        @id @default(uuid())
+  id           String         @id @default(uuid())
   villainName  String
-  username     String        @unique
-  email        String        @unique
+  username     String         @unique
+  email        String         @unique
   passwordHash String
-  villainClass VillainClass  @default(MAD_SCIENTIST)
+  villainClass VillainClass   @default(MAD_SCIENTIST)
   lairLocation String
   headline     String?
   avatarUrl    String?
-  createdAt    DateTime      @default(now())
+  createdAt    DateTime       @default(now())
   posts        Post[]
   sightings    HeroSighting[]
-  sentMessages Message[]     @relation("SentMessages")
-  recvMessages Message[]     @relation("RecvMessages")
+  sentMessages Message[]      @relation("SentMessages")
+  recvMessages Message[]      @relation("RecvMessages")
   bounties     Bounty[]
 }
 
