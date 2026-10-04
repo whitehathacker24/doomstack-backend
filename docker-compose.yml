@@ -33,6 +33,7 @@ services:
       DATABASE_URL: "postgresql://doomstack_admin:super_secret_evil_password@postgres:5432/doomstack?schema=public"
       JWT_SECRET: "evil_mastermind_jwt_secret_key"
       CLIENT_URL: "http://localhost:3000"
+    command: sh -c "npx prisma db push && npm start"
     depends_on:
       postgres:
         condition: service_healthy
