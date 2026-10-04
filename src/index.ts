@@ -152,7 +152,26 @@ app.get('/api/sightings', async (req: Request, res: Response) => {
   }
 });
 
-// 6. Bounty Board Endpoints
+// 6. Direct Message History Between Two Users
+app.get('/api/messages/:user1/:user2', async (req: Request, res: Response) => {
+  try {
+    const { user1, user2 } = req.params;
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: user1, recipientId: user2 },
+          { senderId: user2, recipientId: user1 }
+        ]
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+    res.json(messages);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 7. Bounty Board Endpoints
 app.get('/api/bounties', async (req: Request, res: Response) => {
   try {
     const bounties = await prisma.bounty.findMany({
@@ -161,7 +180,6 @@ app.get('/api/bounties', async (req: Request, res: Response) => {
     });
     res.json(bounties);
   } catch (err: any) {
-    // Fallback if bounty table hasn't been migrated yet
     res.json([]);
   }
 });
@@ -189,12 +207,10 @@ app.post('/api/bounties', async (req: Request, res: Response) => {
 io.on('connection', (socket) => {
   console.log(`[SOCKET CONNECTED]: ${socket.id}`);
 
-  // Join Personal Room for Direct Messages
   socket.on('join_user_room', (userId: string) => {
     socket.join(userId);
   });
 
-  // Real-time Hero Alert Broadcast (Synced to Global Threat Feed)
   socket.on('report_hero_sighting', async (data) => {
     try {
       const { reporterId, heroName, location, dangerLevel } = data;
@@ -207,7 +223,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Direct Encrypted Messaging with Image Support
   socket.on('send_direct_message', async (data) => {
     try {
       const { senderId, recipientId, content, imageUrl } = data;
@@ -216,7 +231,6 @@ io.on('connection', (socket) => {
         data: { senderId, recipientId, content: content || '', imageUrl: imageUrl || null }
       });
 
-      // Emit to recipient's room and sender's room
       io.to(recipientId).emit('receive_direct_message', message);
       io.to(senderId).emit('receive_direct_message', message);
     } catch (err) {
