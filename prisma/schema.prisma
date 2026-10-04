@@ -1,55 +1,55 @@
-generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-enum VillainClass {
-  MASTERMIND
-  MAD_SCIENTIST
-  CRIME_LORD
-  HENCHMAN
-  SORCERER
-  CYBER_CRIMINAL
+generator client {
+  provider = "prisma-client-js"
 }
 
-enum ThreatLevel {
-  LOCAL_NUISANCE
-  REGIONAL_MENACE
-  NATIONAL_THREAT
-  GLOBAL_CATASTROPHE
+enum VillainClass {
+  MAD_SCIENTIST
+  CRIME_LORD
+  SUPER_VILLAIN
+  CORRUPT_CEO
+  MERCENARY
+  OVERLORD
 }
 
 model User {
-  id               String         @id @default(uuid())
-  username         String         @unique
-  email            String         @unique
-  passwordHash     String
-  villainName      String
-  villainClass     VillainClass   @default(HENCHMAN)
-  threatLevel      ThreatLevel    @default(LOCAL_NUISANCE)
-  lairLocation     String
-  headline         String?
-  avatarUrl        String?
-  posts            Post[]
-  messagesSent     Message[]      @relation("SentMessages")
-  messagesReceived Message[]      @relation("ReceivedMessages")
-  heroSightings    HeroSighting[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id           String        @id @default(uuid())
+  villainName  String
+  username     String        @unique
+  email        String        @unique
+  passwordHash String
+  villainClass VillainClass  @default(MAD_SCIENTIST)
+  lairLocation String
+  headline     String?
+  avatarUrl    String?
+  createdAt    DateTime      @default(now())
+  posts        Post[]
+  sightings    HeroSighting[]
+  sentMessages Message[]     @relation("SentMessages")
+  recvMessages Message[]     @relation("RecvMessages")
+  bounties     Bounty[]
 }
 
 model Post {
   id        String   @id @default(uuid())
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   content   String
-  imageUrl  String?
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
+}
+
+model HeroSighting {
+  id          String   @id @default(uuid())
+  heroName    String
+  location    String
+  dangerLevel Int
+  reporterId  String
+  reporter    User     @relation(fields: [reporterId], references: [id])
+  createdAt   DateTime @default(now())
 }
 
 model Message {
@@ -57,17 +57,19 @@ model Message {
   senderId    String
   sender      User     @relation("SentMessages", fields: [senderId], references: [id])
   recipientId String
-  recipient   User     @relation("ReceivedMessages", fields: [recipientId], references: [id])
-  content     String
+  recipient   User     @relation("RecvMessages", fields: [recipientId], references: [id])
+  content     String?
+  imageUrl    String?  // Supports uploaded images
   createdAt   DateTime @default(now())
 }
 
-model HeroSighting {
+model Bounty {
   id          String   @id @default(uuid())
-  reporterId  String
-  reporter    User     @relation(fields: [reporterId], references: [id])
-  heroName    String
-  location    String
-  dangerLevel Int      @default(3)
+  title       String
+  target      String
+  description String
+  reward      String
+  creatorId   String
+  creator     User     @relation(fields: [creatorId], references: [id])
   createdAt   DateTime @default(now())
 }
