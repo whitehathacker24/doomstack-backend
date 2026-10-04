@@ -26,14 +26,14 @@ services:
     container_name: doomstack_api
     restart: always
     ports:
-      - "5000:5000"
+      - "4000:4000"
     environment:
       NODE_ENV: production
-      PORT: 5000
+      PORT: 4000
       DATABASE_URL: "postgresql://doomstack_admin:super_secret_evil_password@postgres:5432/doomstack?schema=public"
       JWT_SECRET: "evil_mastermind_jwt_secret_key"
       CLIENT_URL: "http://localhost:3000"
-    command: sh -c "npx prisma db push && npm start"
+    command: sh -c "npx prisma db push --accept-data-loss && npm start"
     depends_on:
       postgres:
         condition: service_healthy
