@@ -389,18 +389,21 @@
       }
       if (!content && !attachedImageData) return;
 
-      console.log('[EMITTING SEND DIRECT MESSAGE]:', {
-        senderId: currentUser.id,
-        recipientId: activeRecipientId,
-        content,
-        hasImage: !!attachedImageData
-      });
-
-      socket.emit('send_direct_message', {
+      const messagePayload = {
         senderId: currentUser.id,
         recipientId: activeRecipientId,
         content: content,
         imageUrl: attachedImageData
+      };
+
+      console.log('[EMITTING SEND DIRECT MESSAGE]:', messagePayload);
+
+      socket.emit('send_direct_message', messagePayload);
+
+      // Immediately display your own message locally
+      appendChatMessage({
+        ...messagePayload,
+        createdAt: new Date().toISOString()
       });
 
       document.getElementById('chat-input').value = '';
