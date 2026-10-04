@@ -116,7 +116,7 @@
 
           <!-- Input & Image Upload Controls -->
           <div class="flex items-center space-x-2">
-            <input type="text" id="chat-input" placeholder="Type secure dispatch..." class="flex-1 bg-black border border-gray-800 text-white p-2 rounded text-sm focus:outline-none focus:border-red-600">
+            <input type="text" id="chat-input" placeholder="Type secure dispatch..." class="flex-1 bg-black border border-gray-800 text-white p-2 rounded text-sm focus:outline-none focus:border-red-600" onkeypress="if(event.key === 'Enter') sendDirectMessage()">
             
             <!-- Hidden File Input -->
             <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
@@ -281,6 +281,7 @@
 
     function logout() {
       localStorage.removeItem('doomstack_user');
+      if (socket) socket.disconnect();
       location.reload();
     }
 
@@ -292,12 +293,19 @@
       }
     });
 
-    // Socket.IO Setup
+    // Socket.IO Setup with Debugging
     function initSocket() {
+      if (socket) socket.disconnect();
+
       socket = io(BACKEND_URL, { withCredentials: true });
 
       socket.on('connect', () => {
+        console.log('[SOCKET CONNECTED]:', socket.id);
         socket.emit('join_user_room', currentUser.id);
+      });
+
+      socket.on('connect_error', (err) => {
+        console.error('[SOCKET CONNECTION ERROR]:', err);
       });
 
       socket.on('global_hero_alert', (sighting) => {
@@ -305,6 +313,7 @@
       });
 
       socket.on('receive_direct_message', (msg) => {
+        console.log('[SOCKET MESSAGE RECEIVED]:', msg);
         if (msg.senderId === activeRecipientId || msg.recipientId === activeRecipientId || msg.senderId === currentUser.id) {
           appendChatMessage(msg);
         }
@@ -379,6 +388,13 @@
         return;
       }
       if (!content && !attachedImageData) return;
+
+      console.log('[EMITTING SEND DIRECT MESSAGE]:', {
+        senderId: currentUser.id,
+        recipientId: activeRecipientId,
+        content,
+        hasImage: !!attachedImageData
+      });
 
       socket.emit('send_direct_message', {
         senderId: currentUser.id,

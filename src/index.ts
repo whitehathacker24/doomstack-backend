@@ -1,249 +1,262 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { PrismaClient, VillainClass } from '@prisma/client';
-import { z } from 'zod';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 const app = express();
 const server = http.createServer(app);
 
+// Configure CORS for Express and Socket.IO
+const allowedOrigins = ['*']; // Adjust this if you want to lock it down to your frontend origin
+
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+app.use(express.json({ limit: '10mb' })); // Increased limit to support base64 image attachments
+
 const io = new Server(server, {
   cors: {
-    origin: true,
-    credentials: true
-  },
-  maxHttpBufferSize: 10 * 1024 * 1024 // Allow up to 10MB payloads for image uploads
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
 });
 
-// Middleware
-app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: '10mb' })); // Support base64 image payloads in JSON
-app.use(cookieParser());
+const PORT = process.env.PORT || 4000;
 
-// --- Zod Validation Schemas ---
-const SignupSchema = z.object({
-  villainName: z.string().min(1, "Villain name is required"),
-  username: z.string().min(1, "Username is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  villainClass: z.nativeEnum(VillainClass).optional().default(VillainClass.MAD_SCIENTIST),
-  lairLocation: z.string().min(1, "Lair location is required")
+// ==================== REST API ROUTES ====================
+
+// Health Check
+app.get('/', (req, res) => {
+  res.send('DOOMSTACK Central Command Backend is operational.');
 });
 
-const LoginSchema = z.object({
-  identifier: z.string(),
-  password: z.string()
-});
-
-const BountySchema = z.object({
-  title: z.string().min(3),
-  target: z.string().min(2),
-  description: z.string().min(5),
-  reward: z.string().min(2),
-  creatorId: z.string()
-});
-
-// --- REST Endpoints ---
-
-// 1. User Signup
-app.post('/api/auth/signup', async (req: Request, res: Response) => {
+// User Registration (Signup)
+app.post('/api/auth/signup', async (req, res) => {
   try {
-    const data = SignupSchema.parse(req.body);
-    const existing = await prisma.user.findFirst({
-      where: { OR: [{ email: data.email }, { username: data.username }] }
-    });
-
-    if (existing) {
-      return res.status(400).json({ error: "Username or email already registered." });
+    const { villainName, username, villainClass, email, password, lairLocation } = req.body;
+    
+    if (!villainName || !username || !email || !password) {
+      return res.status(400).json({ error: 'Missing required credentials' });
     }
 
-    const passwordHash = await bcrypt.hash(data.password, 12);
-    const user = await prisma.user.create({
+    const existingUser = await prisma.user.findFirst({
+      where: { OR: [{ email }, { username }] }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username or email already registered' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await prisma.user.create({
       data: {
-        villainName: data.villainName,
-        username: data.username,
-        email: data.email,
-        passwordHash,
-        villainClass: data.villainClass,
-        lairLocation: data.lairLocation,
-        headline: `${data.villainClass} based out of ${data.lairLocation}`
+        villainName,
+        username,
+        villainClass: villainClass || 'HENCHMAN',
+        email,
+        password: hashedPassword,
+        lairLocation: lairLocation || 'Unknown Lair'
       }
     });
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 3600 * 1000 });
-
-    return res.status(201).json({ user: { id: user.id, username: user.username, villainName: user.villainName } });
-  } catch (err: any) {
-    return res.status(400).json({ error: err.errors || err.message });
+    const { password: _, ...userWithoutPassword } = newUser;
+    res.status(201).json({ user: userWithoutPassword });
+  } catch (err) {
+    console.error('Signup error:', err);
+    res.status(500).json({ error: 'Internal server error during registration' });
   }
 });
 
-// 2. User Login
-app.post('/api/auth/login', async (req: Request, res: Response) => {
+// User Login
+app.post('/api/auth/login', async (req, res) => {
   try {
-    const data = LoginSchema.parse(req.body);
-    const user = await prisma.user.findFirst({
-      where: { OR: [{ email: data.identifier }, { username: data.identifier }] }
-    });
+    const { identifier, password } = req.body;
 
-    if (!user || !(await bcrypt.compare(data.password, user.passwordHash))) {
-      return res.status(401).json({ error: "Invalid credentials." });
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Identifier and password are required' });
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 3600 * 1000 });
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ email: identifier }, { username: identifier }] }
+    });
 
-    return res.json({ user: { id: user.id, username: user.username, villainName: user.villainName } });
-  } catch (err: any) {
-    return res.status(400).json({ error: err.errors || err.message });
+    if (!user) {
+      return res.status(404).json({ error: 'Villain profile not found' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid security clearance (password)' });
+    }
+
+    const { password: _, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal server error during authentication' });
   }
 });
 
-// 3. Get All Valid Users (for scrollable dropdown chat selector)
-app.get('/api/users', async (req: Request, res: Response) => {
+// Get All Users (Directory)
+app.get('/api/users', async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       select: {
         id: true,
-        username: true,
         villainName: true,
+        username: true,
         villainClass: true,
-        lairLocation: true,
-        avatarUrl: true
-      },
-      orderBy: { villainName: 'asc' }
+        lairLocation: true
+      }
     });
     res.json(users);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    console.error('Fetch users error:', err);
+    res.status(500).json({ error: 'Failed to retrieve villain directory' });
   }
 });
 
-// 4. Get Posts Feed (Global Threat Feed / Scheme Feed)
-app.get('/api/posts', async (req: Request, res: Response) => {
+// Get Direct Message History between two users
+app.get('/api/messages/:userA/:userB', async (req, res) => {
   try {
-    const posts = await prisma.post.findMany({
-      include: { author: { select: { villainName: true, username: true, villainClass: true, avatarUrl: true } } },
-      orderBy: { createdAt: 'desc' }
-    });
-    res.json(posts);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 5. Hero Sightings Feed
-app.get('/api/sightings', async (req: Request, res: Response) => {
-  try {
-    const sightings = await prisma.heroSighting.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-    res.json(sightings);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 6. Direct Message History Between Two Users
-app.get('/api/messages/:user1/:user2', async (req: Request, res: Response) => {
-  try {
-    const { user1, user2 } = req.params;
+    const { userA, userB } = req.params;
     const messages = await prisma.message.findMany({
       where: {
         OR: [
-          { senderId: user1, recipientId: user2 },
-          { senderId: user2, recipientId: user1 }
+          { senderId: userA, recipientId: userB },
+          { senderId: userB, recipientId: userA }
         ]
       },
       orderBy: { createdAt: 'asc' }
     });
     res.json(messages);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    console.error('Fetch messages error:', err);
+    res.status(500).json({ error: 'Failed to retrieve transmission history' });
   }
 });
 
-// 7. Bounty Board Endpoints
-app.get('/api/bounties', async (req: Request, res: Response) => {
+// Get Bounty Board Contracts
+app.get('/api/bounties', async (req, res) => {
   try {
     const bounties = await prisma.bounty.findMany({
-      include: { creator: { select: { villainName: true, username: true } } },
       orderBy: { createdAt: 'desc' }
     });
     res.json(bounties);
-  } catch (err: any) {
-    res.json([]);
+  } catch (err) {
+    console.error('Fetch bounties error:', err);
+    res.status(500).json({ error: 'Failed to retrieve bounty contracts' });
   }
 });
 
-app.post('/api/bounties', async (req: Request, res: Response) => {
+// Post a New Bounty Contract
+app.post('/api/bounties', async (req, res) => {
   try {
-    const data = BountySchema.parse(req.body);
+    const { title, target, description, reward, creatorId } = req.body;
+    if (!title || !target || !reward || !creatorId) {
+      return res.status(400).json({ error: 'Missing required contract parameters' });
+    }
+
     const bounty = await prisma.bounty.create({
-      data: {
-        title: data.title,
-        target: data.target,
-        description: data.description,
-        reward: data.reward,
-        creatorId: data.creatorId
-      }
+      data: { title, target, description: description || '', reward, creatorId }
     });
+
+    // Broadcast to all connected clients
     io.emit('new_bounty_posted', bounty);
-    return res.status(201).json(bounty);
-  } catch (err: any) {
-    return res.status(400).json({ error: err.errors || err.message });
+    res.status(201).json(bounty);
+  } catch (err) {
+    console.error('Post bounty error:', err);
+    res.status(500).json({ error: 'Failed to publish bounty contract' });
   }
 });
 
-// --- Real-Time Socket.IO Engine ---
+// Get Global Hero Sightings
+app.get('/api/sightings', async (req, res) => {
+  try {
+    const sightings = await prisma.heroSighting.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+    res.json(sightings);
+  } catch (err) {
+    console.error('Fetch sightings error:', err);
+    res.status(500).json({ error: 'Failed to fetch threat feed' });
+  }
+});
+
+// ==================== SOCKET.IO HANDLERS ====================
+
 io.on('connection', (socket) => {
-  console.log(`[SOCKET CONNECTED]: ${socket.id}`);
+  console.log(`[CLIENT CONNECTED]: ${socket.id}`);
 
-  socket.on('join_user_room', (userId: string) => {
-    socket.join(userId);
-  });
-
-  socket.on('report_hero_sighting', async (data) => {
-    try {
-      const { reporterId, heroName, location, dangerLevel } = data;
-      const sighting = await prisma.heroSighting.create({
-        data: { reporterId, heroName, location, dangerLevel: Number(dangerLevel) }
-      });
-      io.emit('global_hero_alert', sighting);
-    } catch (err) {
-      console.error("Error saving hero sighting:", err);
+  // Join personal user room for direct messaging targeting
+  socket.on('join_user_room', (userId) => {
+    if (userId) {
+      socket.join(userId);
+      console.log(`[ROOM JOINED]: Socket ${socket.id} joined personal room -> ${userId}`);
     }
   });
 
+  // Handle Direct Messaging
   socket.on('send_direct_message', async (data) => {
+    console.log('[SOCKET MESSAGE RECEIVED]:', data);
     try {
       const { senderId, recipientId, content, imageUrl } = data;
+      if (!senderId || !recipientId) {
+        console.error('Missing senderId or recipientId in direct message payload.');
+        return;
+      }
 
+      // Persist to database
       const message = await prisma.message.create({
-        data: { senderId, recipientId, content: content || '', imageUrl: imageUrl || null }
+        data: {
+          senderId,
+          recipientId,
+          content: content || '',
+          imageUrl: imageUrl || null
+        }
       });
 
+      // Emit to both recipient's room and sender's room
       io.to(recipientId).emit('receive_direct_message', message);
       io.to(senderId).emit('receive_direct_message', message);
     } catch (err) {
-      console.error("Error sending direct message:", err);
+      console.error('Error processing direct message socket event:', err);
+    }
+  });
+
+  // Handle Hero Sighting Reports
+  socket.on('report_hero_sighting', async (data) => {
+    try {
+      const { reporterId, heroName, location, dangerLevel } = data;
+      if (!heroName || !location || !reporterId) return;
+
+      const sighting = await prisma.heroSighting.create({
+        data: {
+          reporterId,
+          heroName,
+          location,
+          dangerLevel: parseInt(dangerLevel) || 1
+        }
+      });
+
+      // Broadcast globally to all connected terminals
+      io.emit('global_hero_alert', sighting);
+    } catch (err) {
+      console.error('Error reporting hero sighting:', err);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log(`[SOCKET DISCONNECTED]: ${socket.id}`);
+    console.log(`[CLIENT DISCONNECTED]: ${socket.id}`);
   });
 });
 
-const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`Doomstack API running on port ${PORT} [Node.js + Postgres]`);
+  console.log(`DOOMSTACK backend server running on port ${PORT}`);
 });
