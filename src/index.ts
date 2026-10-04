@@ -197,8 +197,9 @@ io.on('connection', (socket) => {
   // Join personal user room for direct messaging targeting
   socket.on('join_user_room', (userId) => {
     if (userId) {
-      socket.join(userId);
-      console.log(`[ROOM JOINED]: Socket ${socket.id} joined personal room -> ${userId}`);
+      const roomId = String(userId); // FORCE ID TO BE A STRING
+      socket.join(roomId);
+      console.log(`[ROOM JOINED]: Socket ${socket.id} joined personal room -> ${roomId}`);
     }
   });
 
@@ -222,9 +223,9 @@ io.on('connection', (socket) => {
         }
       });
 
-      // Emit to both recipient's room and sender's room
-      io.to(recipientId).emit('receive_direct_message', message);
-      io.to(senderId).emit('receive_direct_message', message);
+      // Emit to both recipient's room and sender's room USING STRING IDs
+      io.to(String(recipientId)).emit('receive_direct_message', message);
+      io.to(String(senderId)).emit('receive_direct_message', message);
     } catch (err) {
       console.error('Error processing direct message socket event:', err);
     }
