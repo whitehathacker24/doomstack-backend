@@ -13,5 +13,5 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-# Start the application from the built dist folder
-CMD ["node", "dist/index.js"]
+# Push the database schema, THEN start the application
+CMD ["sh", "-c", "npx prisma db push && node dist/index.js"]
