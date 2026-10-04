@@ -59,12 +59,12 @@ app.post('/api/auth/signup', async (req, res) => {
         username,
         villainClass: villainClass || 'HENCHMAN',
         email,
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         lairLocation: lairLocation || 'Unknown Lair'
       }
     });
 
-    const { password: _, ...userWithoutPassword } = newUser;
+    const { passwordHash: _, ...userWithoutPassword } = newUser;
     res.status(201).json({ user: userWithoutPassword });
   } catch (err) {
     console.error('Signup error:', err);
@@ -89,12 +89,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(404).json({ error: 'Villain profile not found' });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid security clearance (password)' });
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { passwordHash: _, ...userWithoutPassword } = user;
     res.json({ user: userWithoutPassword });
   } catch (err) {
     console.error('Login error:', err);
