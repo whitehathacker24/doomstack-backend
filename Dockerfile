@@ -1,7 +1,7 @@
-FROM node:18-bullseye-slim
+FROM node:20-bookworm-slim
 
 # Prisma needs OpenSSL, which the slim image doesn't include
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
