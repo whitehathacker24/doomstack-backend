@@ -14,4 +14,4 @@ RUN npx prisma generate
 RUN npm run build
 
 # Push the database schema, THEN start the application
-CMD ["sh", "-c", "npx prisma db push && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/index.js"]
