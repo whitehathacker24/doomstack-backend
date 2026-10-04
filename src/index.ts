@@ -219,7 +219,7 @@ app.get('/api/messages/:userA/:userB', async (req, res) => {
 // Unread counts per sender for a user (directory badges)
 app.get('/api/unread/:userId', async (req, res) => {
   try {
-    const rows = await prisma.message.groupBy({ by: ['senderId'], where: { recipientId: req.params.userId, readAt: null }, _count: true });
+    const rows = await prisma.message.groupBy({ by: ['senderId'], where: { recipientId: req.params.userId, readAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, _count: true });
     res.json(Object.fromEntries(rows.map(r => [r.senderId, r._count])));
   } catch { res.status(500).json({ error: 'Failed to count unread' }); }
 });
@@ -431,7 +431,13 @@ app.get('/api/messages/:userA/:userB/search', ah(async (req, res) => {
   const { userA, userB } = req.params;
   const q = String(req.query.q || '').slice(0, 100);
   res.json(await prisma.message.findMany({
-    where: { content: { contains: q, mode: 'insensitive' }, OR: [{ senderId: userA, recipientId: userB }, { senderId: userB, recipientId: userA }] },
+    where: {
+      content: { contains: q, mode: 'insensitive' },
+      AND: [
+        { OR: [{ senderId: userA, recipientId: userB }, { senderId: userB, recipientId: userA }] },
+        { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }
+      ]
+    },
     orderBy: { createdAt: 'asc' }, take: 100
   }));
 }));
@@ -488,11 +494,12 @@ app.post('/api/follow/:targetId', ah(async (req, res) => {
 app.post('/api/endorse/:targetId', ah(async (req, res) => {
   const me = (req as any).user, t = req.params.targetId, skill = String(req.body.skill);
   if (t === me.id || !SKILLS.includes(skill)) return bad(res, 'Invalid endorsement');
-  await prisma.endorsement.upsert({
-    where: { endorserId_endorsedId_skill: { endorserId: me.id, endorsedId: t, skill } }, update: {},
-    create: { endorserId: me.id, endorsedId: t, skill }
-  });
-  notify(t, 'endorse', `${me.villainName} endorsed you for ${skill}`);
+  const key = { endorserId_endorsedId_skill: { endorserId: me.id, endorsedId: t, skill } };
+  const already = await prisma.endorsement.findUnique({ where: key });
+  if (!already) {
+    await prisma.endorsement.upsert({ where: key, update: {}, create: { endorserId: me.id, endorsedId: t, skill } });
+    notify(t, 'endorse', `${me.villainName} endorsed you for ${skill}`); // only the first time, so re-clicking can't spam
+  }
   res.json({ ok: true });
 }));
 
@@ -633,6 +640,7 @@ io.on('connection', (socket) => {
 
   on('react_message', async (d) => {
     if (typeof d.messageId !== 'string' || !['😈', '🔥', '💀'].includes(d.emoji)) return;
+    if (await muted(me)) return;
     const m = await prisma.message.findUnique({ where: { id: d.messageId } });
     if (!m || (m.senderId !== me && m.recipientId !== me)) return; // only the two participants can react
     const r = (m.reactions as Record<string, string[]>) || {};
@@ -659,6 +667,7 @@ io.on('connection', (socket) => {
   on('report_hero_sighting', async (d) => {
     if (!allow(socket, 'sighting', 10, 60_000)) { socket.emit('dispatch_error', 'Slow down: too many reports.'); return; }
     if (typeof d.heroName !== 'string' || typeof d.location !== 'string' || !d.heroName.trim() || !d.location.trim()) return;
+    if (await muted(me)) { socket.emit('dispatch_error', 'You are muted.'); return; }
     const sighting = await prisma.heroSighting.create({
       data: {
         reporterId: me, heroName: d.heroName.trim().slice(0, 80), location: d.location.trim().slice(0, 120),
@@ -670,7 +679,7 @@ io.on('connection', (socket) => {
   });
 
   on('pin_message', async (d) => {
-    if (typeof d.messageId !== 'string') return;
+    if (typeof d.messageId !== 'string' || (await muted(me))) return;
     const m = await prisma.message.findUnique({ where: { id: d.messageId } });
     if (!m || (m.senderId !== me && m.recipientId !== me)) return;
     const u = await prisma.message.update({ where: { id: d.messageId }, data: { pinned: !m.pinned } });
@@ -678,7 +687,7 @@ io.on('connection', (socket) => {
   });
 
   on('edit_message', async (d) => {
-    if (typeof d.messageId !== 'string' || typeof d.content !== 'string' || !d.content.trim() || d.content.length > 2000) return;
+    if (typeof d.messageId !== 'string' || typeof d.content !== 'string' || !d.content.trim() || d.content.length > 2000 || (await muted(me))) return;
     const m = await prisma.message.findUnique({ where: { id: d.messageId } });
     if (!m || m.senderId !== me) return;
     const u = await prisma.message.update({ where: { id: d.messageId }, data: { content: d.content, editedAt: new Date() } });
@@ -694,7 +703,16 @@ io.on('connection', (socket) => {
     io.to('soc:' + d.societyId).emit('society_message', m);
   });
 
-  socket.on('disconnect', () => console.log(`[CLIENT DISCONNECTED]: ${socket.id}`));
+  socket.on('disconnect', async () => {
+    console.log(`[CLIENT DISCONNECTED]: ${socket.id}`);
+    try {
+      // Only go offline when this was the user's last open connection (other tabs/devices keep them online)
+      if ((await io.in(me).fetchSockets()).length === 0) {
+        await prisma.user.update({ where: { id: me }, data: { status: 'offline' } });
+        io.emit('status_changed', { userId: me, status: 'offline' });
+      }
+    } catch { /* best effort */ }
+  });
 });
 
 // A stray rejected promise should be logged, not take the whole server down

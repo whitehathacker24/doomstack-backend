@@ -289,7 +289,7 @@
     });
     socket.on('connect_error', err => { console.error('[SOCKET CONNECTION ERROR]:', err); if (err && err.message === 'unauthorized') logout(); });
     socket.on('dispatch_error', msg => alert(msg));
-    socket.on('global_hero_alert', appendHeroSighting);
+    socket.on('global_hero_alert', s => { appendHeroSighting(s); if (Number(s.dangerLevel) >= 5) dangerAlert(); }); // siren only for live alerts, not re-renders
     socket.on('sighting_updated', loadHeroSightings);
     socket.on('new_bounty_posted', () => { loadBounties(); refreshMe(); loadLeaderboard(); });
     socket.on('society_message', m => { if (m.societyId === activeSociety) appendSocMsg(m); });
@@ -487,7 +487,6 @@
   function appendHeroSighting(s) {
     const feed = $('threat-feed');
     if (feed.querySelector('.italic')) feed.innerHTML = '';
-    if (Number(s.dangerLevel) >= 5 && Date.now() - new Date(s.createdAt) < 10000) dangerAlert();
     const div = document.createElement('div');
     div.className = 'bg-black border border-red-950 p-2.5 rounded';
     div.innerHTML = `
@@ -643,7 +642,8 @@
   // ---------- Hashtags, mentions, profiles ----------
   let activeTag = null;
   const fmtPost = t => esc(t)
-    .replace(/#([a-zA-Z0-9_]{2,30})/g, '<a href="#" onclick="filterTag(\'$1\');return false" class="text-red-400">#$1</a>')
+    // (^|[^&\w]) skips the "#039" inside the &#039; entity that esc() produces for apostrophes
+    .replace(/(^|[^&\w])#([a-zA-Z0-9_]{2,30})/g, '$1<a href="#" onclick="filterTag(\'$2\');return false" class="text-red-400">#$2</a>')
     .replace(/@([a-zA-Z0-9_]{2,30})/g, '<span class="text-yellow-500">@$1</span>');
   function filterTag(t) { activeTag = t; loadPosts(); loadTrending(); }
   async function loadTrending() {

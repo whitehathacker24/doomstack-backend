@@ -33,8 +33,9 @@ services:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: "postgresql://doomstack_admin:${POSTGRES_PASSWORD:-super_secret_evil_password}@postgres:5432/doomstack?schema=public"
-      # Required by the server. Use a long random value outside local dev (e.g. `openssl rand -hex 32`).
-      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-before-deploying}
+      # Required: no default, so a missing value fails loudly instead of using a publicly known secret.
+      # Generate one with `openssl rand -hex 32` and put it in .env or export it.
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env or your shell (openssl rand -hex 32)}
       # Comma-separated frontend origins allowed to call the API (e.g. http://localhost:5500).
       # Empty = any origin is allowed, which is fine locally.
       CLIENT_URL: ${CLIENT_URL:-}
