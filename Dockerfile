@@ -5,9 +5,9 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-c
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies (npm ci when a lockfile exists, for reproducible builds)
 COPY package*.json ./
-RUN npm install
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Copy all source files
 COPY . .
@@ -16,5 +16,12 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-# Push the database schema, THEN start the application
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/index.js"]
+# Don't run the server as root
+RUN chown -R node:node /app
+USER node
+
+ENV NODE_ENV=production
+
+# Sync the database schema, THEN start the application.
+# No --accept-data-loss: if a schema change would drop data, db push fails loudly instead of wiping it.
+CMD ["sh", "-c", "npx prisma db push && node dist/index.js"]

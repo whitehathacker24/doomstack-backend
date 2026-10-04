@@ -1,5 +1,7 @@
 version: '3.8'
 
+# Local development stack. Override the defaults below by exporting variables
+# or putting them in a .env file next to this one (never commit that file).
 services:
   postgres:
     image: postgres:15-alpine
@@ -7,10 +9,10 @@ services:
     restart: always
     environment:
       POSTGRES_USER: doomstack_admin
-      POSTGRES_PASSWORD: super_secret_evil_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-super_secret_evil_password}
       POSTGRES_DB: doomstack
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432" # only reachable from this machine
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -30,10 +32,15 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: "postgresql://doomstack_admin:super_secret_evil_password@postgres:5432/doomstack?schema=public"
-      JWT_SECRET: "evil_mastermind_jwt_secret_key"
-      CLIENT_URL: "http://localhost:3000"
-    command: sh -c "npx prisma db push --accept-data-loss && npm start"
+      DATABASE_URL: "postgresql://doomstack_admin:${POSTGRES_PASSWORD:-super_secret_evil_password}@postgres:5432/doomstack?schema=public"
+      # Required by the server. Use a long random value outside local dev (e.g. `openssl rand -hex 32`).
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-before-deploying}
+      # Comma-separated frontend origins allowed to call the API (e.g. http://localhost:5500).
+      # Empty = any origin is allowed, which is fine locally.
+      CLIENT_URL: ${CLIENT_URL:-}
+      # Username that gets the ADMIN role on startup (register it first, then restart the API)
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+    # Startup command (schema sync + server) comes from the Dockerfile CMD
     depends_on:
       postgres:
         condition: service_healthy

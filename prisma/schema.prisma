@@ -53,6 +53,7 @@ model User {
   endorsesMade Endorsement[]  @relation("Endorser")
   endorsedBy   Endorsement[]  @relation("Endorsed")
   notifications Notification[]
+  sightingVotes SightingVote[]
 }
 
 model Post {
@@ -63,6 +64,8 @@ model Post {
   likes     Like[]
   comments  Comment[]
   createdAt DateTime  @default(now())
+
+  @@index([createdAt])
 }
 
 model Like {
@@ -94,7 +97,22 @@ model HeroSighting {
   falseAlarms Int      @default(0)
   reporterId  String
   reporter    User     @relation(fields: [reporterId], references: [id])
+  votes       SightingVote[]
   createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// One vote per user per sighting (confirm = true, false alarm = false)
+model SightingVote {
+  id         String       @id @default(uuid())
+  sightingId String
+  userId     String
+  confirm    Boolean
+  sighting   HeroSighting @relation(fields: [sightingId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sightingId, userId])
 }
 
 model Message {
@@ -112,6 +130,10 @@ model Message {
   expiresAt   DateTime? // self-destruct time
   reactions   Json      @default("{}") // { "😈": ["userId"] }
   createdAt   DateTime  @default(now())
+
+  @@index([senderId, recipientId, createdAt])
+  @@index([recipientId, readAt])
+  @@index([expiresAt])
 }
 
 model Bounty {
@@ -129,6 +151,8 @@ model Bounty {
   claimerId   String?
   claimer     User?     @relation("Claimed", fields: [claimerId], references: [id])
   createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
 }
 
 model Society {
@@ -158,6 +182,8 @@ model SocietyMessage {
   society   Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
   sender    User     @relation(fields: [senderId], references: [id])
   createdAt DateTime @default(now())
+
+  @@index([societyId, createdAt])
 }
 
 model Follow {
