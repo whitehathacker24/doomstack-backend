@@ -31,6 +31,12 @@ model User {
   catchphrase  String?
   nemesis      String?
   status       String         @default("offline") // online | offline | plotting
+  role         String         @default("USER")    // USER | ADMIN
+  banned       Boolean        @default(false)
+  mutedUntil   DateTime?
+  coins        Int            @default(100)
+  notoriety    Int            @default(0)
+  evilCv       String?
   createdAt    DateTime       @default(now())
   posts        Post[]
   sightings    HeroSighting[]
@@ -40,6 +46,13 @@ model User {
   claimed      Bounty[]       @relation("Claimed")
   likes        Like[]
   comments     Comment[]
+  societies    SocietyMember[]
+  societyMsgs  SocietyMessage[]
+  following    Follow[]       @relation("Follower")
+  followers    Follow[]       @relation("Followed")
+  endorsesMade Endorsement[]  @relation("Endorser")
+  endorsedBy   Endorsement[]  @relation("Endorsed")
+  notifications Notification[]
 }
 
 model Post {
@@ -93,6 +106,10 @@ model Message {
   content     String?
   imageUrl    String?   // Supports uploaded images
   readAt      DateTime?
+  editedAt    DateTime?
+  replyToId   String?
+  pinned      Boolean   @default(false)
+  expiresAt   DateTime? // self-destruct time
   reactions   Json      @default("{}") // { "😈": ["userId"] }
   createdAt   DateTime  @default(now())
 }
@@ -105,10 +122,73 @@ model Bounty {
   reward      String
   category    String    @default("GENERAL") // SABOTAGE | THEFT | RECON | GENERAL
   status      String    @default("OPEN")    // OPEN | IN_PROGRESS | COMPLETED
+  rewardCoins Int       @default(0)         // held in escrow until completion
   expiresAt   DateTime?
   creatorId   String
   creator     User      @relation("Created", fields: [creatorId], references: [id])
   claimerId   String?
   claimer     User?     @relation("Claimed", fields: [claimerId], references: [id])
   createdAt   DateTime  @default(now())
+}
+
+model Society {
+  id         String           @id @default(uuid())
+  name       String
+  inviteCode String           @unique
+  createdAt  DateTime         @default(now())
+  members    SocietyMember[]
+  messages   SocietyMessage[]
+}
+
+model SocietyMember {
+  id        String  @id @default(uuid())
+  societyId String
+  userId    String
+  society   Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id])
+
+  @@unique([societyId, userId])
+}
+
+model SocietyMessage {
+  id        String   @id @default(uuid())
+  societyId String
+  senderId  String
+  content   String
+  society   Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Follow {
+  id         String @id @default(uuid())
+  followerId String
+  followedId String
+  follower   User   @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followed   User   @relation("Followed", fields: [followedId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followedId])
+}
+
+model Endorsement {
+  id         String @id @default(uuid())
+  endorserId String
+  endorsedId String
+  skill      String
+  endorser   User   @relation("Endorser", fields: [endorserId], references: [id], onDelete: Cascade)
+  endorsed   User   @relation("Endorsed", fields: [endorsedId], references: [id], onDelete: Cascade)
+
+  @@unique([endorserId, endorsedId, skill])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  text      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

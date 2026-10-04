@@ -27,14 +27,18 @@
     <div class="flex items-center gap-2">
       <button onclick="toggleTheme()" class="btn2" title="Theme">🩸 Theme</button>
       <div id="user-status" class="hidden text-right">
-        <select id="status-select" onchange="setStatus()" class="bg-black border border-gray-800 text-xs rounded p-1">
+        <button onclick="toggleNotifs()" class="btn2" title="Notifications">🔔 <span id="notif-count">0</span></button>
+          <select id="status-select" onchange="setStatus()" class="bg-black border border-gray-800 text-xs rounded p-1">
           <option value="online">🟢 Online</option><option value="plotting">😈 Plotting</option><option value="offline">⚫ Offline</option>
         </select>
         <span id="nav-username" class="text-sm font-bold text-red-400 ml-2"></span>
+        <span id="coins" class="text-xs text-yellow-500 ml-2"></span>
         <button onclick="logout()" class="ml-2 btn2">Disconnect</button>
       </div>
     </div>
   </header>
+
+  <div id="notif-panel" class="hidden card mb-4 text-xs max-h-64 overflow-y-auto"></div>
 
   <!-- AUTH -->
   <div id="auth-view" class="max-w-md mx-auto card border-red-950 shadow-2xl mt-10">
@@ -75,14 +79,22 @@
         <h2 class="text-lg font-bold text-red-500 mb-3"><span class="inline-block w-2 h-2 bg-red-600 rounded-full animate-pulse mr-2"></span>Secure Comms</h2>
         <label class="block text-xs text-gray-400 uppercase mb-1">Select Target Villain:</label>
         <select id="villain-dropdown" onchange="setActiveChatRecipient()" class="inp mb-3"><option value="">-- Loading Directory... --</option></select>
+        <div class="flex gap-2 mb-3">
+          <input id="chat-search" class="inp" placeholder="Search this chat..." onkeypress="if(event.key==='Enter')searchChat()">
+          <button onclick="searchChat()" class="btn2">🔍</button>
+          <button onclick="activeRecipientId && openProfile(activeRecipientId)" class="btn2" title="View profile">👤</button>
+          <span id="admin-tools" class="hidden"><span class="flex gap-1"><button onclick="adminBan()" class="btn2">🔨 Ban</button><button onclick="adminMute()" class="btn2">🤐 Mute</button></span></span>
+        </div>
         <div id="chat-messages" class="h-64 overflow-y-auto bg-black/70 border border-gray-900 p-3 rounded mb-1 flex flex-col space-y-2 text-sm">
           <div class="text-gray-600 text-center italic my-auto">Select a villain from the directory above to begin secure transmission.</div>
         </div>
+        <div id="reply-banner" class="text-xs text-gray-400 hidden mb-1"></div>
         <div id="typing-indicator" class="text-xs text-red-400 h-4 mb-1"></div>
         <div class="flex items-center space-x-2">
           <input type="text" id="chat-input" placeholder="Type secure dispatch..." class="inp flex-1" onkeypress="if(event.key==='Enter')sendDirectMessage()" oninput="sendTyping()">
           <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
           <button onclick="document.getElementById('image-upload').click()" class="btn2">📷 Attach</button>
+          <select id="chat-ttl" class="bg-black border border-gray-800 text-xs rounded p-1" title="Self-destruct timer"><option value="0">∞</option><option value="30">💣 30s</option><option value="300">💣 5m</option><option value="3600">💣 1h</option></select>
           <button onclick="sendDirectMessage()" class="btn">Transmit</button>
         </div>
         <div id="image-preview-indicator" class="text-xs text-red-400 mt-1 hidden">Image attached and ready for broadcast.</div>
@@ -95,6 +107,7 @@
           <input id="post-input" class="inp flex-1" placeholder="Announce your latest scheme..." maxlength="1000" onkeypress="if(event.key==='Enter')submitPost()">
           <button onclick="submitPost()" class="btn">Post</button>
         </div>
+        <div id="trending" class="text-xs text-gray-500 mb-2"></div>
         <div id="posts-list" class="space-y-3 max-h-96 overflow-y-auto pr-1 text-xs"></div>
       </div>
 
@@ -118,6 +131,7 @@
             <select id="bounty-category" class="inp"><option>GENERAL</option><option>SABOTAGE</option><option>THEFT</option><option>RECON</option></select>
             <input type="datetime-local" id="bounty-expires" class="inp" title="Expires (optional)">
           </div>
+          <input type="number" min="0" id="bounty-coins" class="inp" placeholder="Doom Coins to hold in escrow (optional)">
           <button type="submit" class="btn w-full">Broadcast Contract</button>
         </form>
         <div id="bounties-list" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
@@ -134,6 +148,7 @@
           <input id="pf-headline" class="inp" placeholder="Headline (e.g., World Domination Consultant)">
           <input id="pf-catchphrase" class="inp" placeholder="Catchphrase">
           <input id="pf-nemesis" class="inp" placeholder="Nemesis (arch-enemy hero)">
+          <textarea id="pf-evilCv" class="inp" rows="3" placeholder="Evil CV: past schemes, career history..."></textarea>
           <button class="btn w-full">Save Profile</button>
         </form>
         <details class="mt-3 text-xs">
@@ -144,6 +159,34 @@
             <button class="btn2 w-full">Update</button>
           </form>
         </details>
+      </div>
+
+      <div class="card">
+        <h2 class="text-lg font-bold text-red-500 mb-2">🏆 Richest Villains</h2>
+        <div id="leaderboard" class="space-y-1 text-xs"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="text-lg font-bold text-red-500 mb-2">🕶️ Secret Societies</h2>
+        <select id="society-select" onchange="openSociety()" class="inp mb-2"></select>
+        <div class="flex gap-2 mb-2"><button onclick="createSociety()" class="btn2">+ Create</button><button onclick="joinSociety()" class="btn2">Join by code</button></div>
+        <div id="society-messages" class="h-32 overflow-y-auto bg-black/70 border border-gray-900 p-2 rounded text-xs space-y-1 mb-2"></div>
+        <div class="flex gap-2"><input id="society-input" class="inp" placeholder="Whisper to the society..." onkeypress="if(event.key==='Enter')sendSociety()"><button onclick="sendSociety()" class="btn">Send</button></div>
+      </div>
+
+      <div class="card">
+        <details ontoggle="if(this.open)loadHeroes()">
+          <summary class="text-lg font-bold text-red-500 cursor-pointer">📚 Hero Database</summary>
+          <div id="hero-db" class="space-y-1 text-xs mt-2"></div>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2 class="text-lg font-bold text-red-500 mb-2">🧪 Villain Lab</h2>
+        <div class="text-xs space-y-2">
+          <div><button onclick="showScheme()" class="btn2">Today's scheme</button> <button onclick="genName()" class="btn2">Alias generator</button> <button onclick="startQuiz()" class="btn2">Which villain are you?</button></div>
+          <div id="lab-out" class="text-gray-300"></div>
+        </div>
       </div>
 
       <!-- Threat Feed -->
@@ -165,15 +208,20 @@
   </div>
 </div>
 
+<div id="profile-modal" class="fixed inset-0 bg-black/80 items-center justify-center p-4 z-50" style="display:none" onclick="if(event.target===this)closeProfile()">
+  <div id="profile-body" class="card max-w-md w-full text-xs space-y-2 max-h-[90vh] overflow-y-auto"></div>
+</div>
+
 <script>
   const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
   const BACKEND_URL = IS_LOCAL ? 'http://localhost:4000' : 'https://doomstack-backend.onrender.com';
   let socket = null, currentUser = null, activeRecipientId = null, attachedImageData = null, typingTimer = null, lastTypingSent = 0;
   const $ = id => document.getElementById(id);
   const esc = s => !s ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  let token = localStorage.getItem('doomstack_token');
   const api = (path, method = 'GET', body) => fetch(BACKEND_URL + path, {
-    method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined
-  }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(typeof d.error === 'string' ? d.error : JSON.stringify(d.error)); return d; });
+    method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined
+  }).then(async r => { const d = await r.json(); if (r.status === 401 && !path.startsWith('/api/auth/')) { logout(); throw new Error('Session expired'); } if (!r.ok) throw new Error(typeof d.error === 'string' ? d.error : JSON.stringify(d.error)); return d; });
   const netErr = e => e.message === 'Failed to fetch' ? "Cannot reach the server. If it is on Render's free tier, it may be waking up - wait ~60s and try again." : e.message;
 
   function toggleTheme() { document.body.classList.toggle('blood'); localStorage.setItem('doomstack_theme', document.body.classList.contains('blood') ? 'blood' : 'dark'); }
@@ -190,33 +238,36 @@
 
   async function handleLogin(e) {
     e.preventDefault();
-    try { setSession((await api('/api/auth/login', 'POST', { identifier: $('login-identifier').value, password: $('login-password').value })).user); }
+    try { const d = await api('/api/auth/login', 'POST', { identifier: $('login-identifier').value, password: $('login-password').value }); setSession(d.user, d.token); }
     catch (err) { showAuthError(netErr(err)); }
   }
   async function handleSignup(e) {
     e.preventDefault();
     const f = k => $('signup-' + k).value;
     try {
-      setSession((await api('/api/auth/signup', 'POST', {
+      const d = await api('/api/auth/signup', 'POST', {
         villainName: f('villainName'), username: f('username'), villainClass: f('villainClass'),
         email: f('email'), password: f('password'), lairLocation: f('lairLocation')
-      })).user);
+      });
+      setSession(d.user, d.token);
     } catch (err) { showAuthError(netErr(err)); }
   }
 
-  function setSession(user) {
+  function setSession(user, tok) {
+    if (tok) { token = tok; localStorage.setItem('doomstack_token', tok); }
     currentUser = user;
     localStorage.setItem('doomstack_user', JSON.stringify(user));
     $('auth-view').classList.add('hidden');
     $('dashboard-view').classList.remove('hidden');
     $('user-status').classList.remove('hidden');
     $('nav-username').textContent = `${user.villainName} (@${user.username})`;
-    ['villainName', 'headline', 'catchphrase', 'nemesis'].forEach(k => $('pf-' + k).value = user[k] || '');
+    ['villainName', 'headline', 'catchphrase', 'nemesis', 'evilCv'].forEach(k => $('pf-' + k).value = user[k] || '');
     $('status-select').value = user.status && user.status !== 'offline' ? user.status : 'online';
-    initSocket(); loadVillainDirectory(); loadBounties(); loadHeroSightings(); loadPosts();
+    initSocket(); loadVillainDirectory(); loadBounties(); loadHeroSightings(); loadPosts(); refreshMe(); loadLeaderboard(); loadSocieties(); loadNotifs(); loadTrending();
   }
 
   function logout() {
+    localStorage.removeItem('doomstack_token'); token = null;
     if (socket) socket.emit('set_status', { userId: currentUser.id, status: 'offline' });
     localStorage.removeItem('doomstack_user');
     setTimeout(() => { if (socket) socket.disconnect(); location.reload(); }, 150);
@@ -224,12 +275,12 @@
 
   window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('doomstack_user');
-    if (saved) { try { setSession(JSON.parse(saved)); } catch (e) { localStorage.removeItem('doomstack_user'); } }
+    if (saved && token) { try { setSession(JSON.parse(saved)); } catch (e) { localStorage.removeItem('doomstack_user'); } }
   });
 
   function initSocket() {
     if (socket) socket.disconnect();
-    socket = io(BACKEND_URL);
+    socket = io(BACKEND_URL, { auth: { token } });
     socket.on('connect', () => {
       socket.emit('join_user_room', currentUser.id);
       socket.emit('set_status', { userId: currentUser.id, status: $('status-select').value });
@@ -237,8 +288,10 @@
     socket.on('connect_error', err => console.error('[SOCKET CONNECTION ERROR]:', err));
     socket.on('global_hero_alert', appendHeroSighting);
     socket.on('sighting_updated', loadHeroSightings);
-    socket.on('new_bounty_posted', loadBounties);
-    socket.on('new_post', loadPosts);
+    socket.on('new_bounty_posted', () => { loadBounties(); refreshMe(); loadLeaderboard(); });
+    socket.on('society_message', m => { if (m.societyId === activeSociety) appendSocMsg(m); });
+    socket.on('new_post', () => { loadPosts(); loadTrending(); });
+    socket.on('notification', loadNotifs);
     socket.on('status_changed', loadVillainDirectory);
     socket.on('receive_direct_message', msg => {
       const isThisChat = (msg.senderId === activeRecipientId && msg.recipientId === currentUser.id) ||
@@ -313,7 +366,8 @@
     if (!activeRecipientId) return alert('Please select a recipient from the directory first.');
     if (!content && !attachedImageData) return;
     if (!socket || !socket.connected) return alert('Not connected to the server yet. Wait a moment and try again.');
-    socket.emit('send_direct_message', { senderId: currentUser.id, recipientId: activeRecipientId, content, imageUrl: attachedImageData });
+    socket.emit('send_direct_message', { senderId: currentUser.id, recipientId: activeRecipientId, content, imageUrl: attachedImageData, replyToId: replyTo && replyTo.id, ttl: Number($('chat-ttl').value) || 0 });
+    clearReply();
     $('chat-input').value = ''; attachedImageData = null;
     $('image-preview-indicator').classList.add('hidden'); $('image-upload').value = '';
   }
@@ -327,16 +381,20 @@
     const isMe = msg.senderId === currentUser.id;
     const div = document.createElement('div');
     div.className = `p-2 rounded max-w-[80%] ${isMe ? 'ml-auto bg-red-950/40 border border-red-900/40' : 'mr-auto bg-gray-900 border border-gray-800'}`;
+    chatCache[msg.id] = msg;
     const rx = Object.entries(msg.reactions || {}).filter(([, u]) => u.length).map(([e, u]) => `${e}${u.length}`).join(' ');
     let html = `<p class="text-xs text-gray-400 mb-0.5">${isMe ? 'You' : 'Target'}</p>`;
-    if (msg.content) html += `<p class="text-white">${esc(msg.content)}</p>`;
+    if (msg.pinned) html = '<p class="text-[10px] text-yellow-500">📌 pinned</p>' + html;
+    if (msg.replyToId && chatCache[msg.replyToId]) html += `<p class="text-[10px] text-gray-500 border-l-2 border-gray-700 pl-1">↩ ${esc((chatCache[msg.replyToId].content || '[image]').slice(0, 60))}</p>`;
+    if (msg.content) html += `<p class="text-white">${esc(msg.content)}${msg.editedAt ? ' <i class="text-gray-600 text-[10px]">(edited)</i>' : ''}</p>`;
     if (msg.imageUrl) html += `<img src="${msg.imageUrl}" class="mt-2 max-h-40 rounded border border-gray-800">`;
     html += `<div class="flex items-center gap-2 mt-1 text-[10px] text-gray-500">
       ${['😈', '🔥', '💀'].map(e => `<button onclick="react('${msg.id}','${e}')">${e}</button>`).join('')}
-      ${rx ? `<span class="text-gray-300">${rx}</span>` : ''}
-      ${isMe ? `<span>${msg.readAt ? '✓✓ Read' : '✓ Sent'}</span><button onclick="delMsg('${msg.id}')" class="text-red-700">delete</button>` : ''}
+      <button onclick="setReply('${msg.id}')">↩</button><button onclick="pinMsg('${msg.id}')">📌</button>${rx ? `<span class="text-gray-300">${rx}</span>` : ''}
+      ${isMe ? `<span>${msg.readAt ? '✓✓ Read' : '✓ Sent'}</span><button onclick="editMsg('${msg.id}')" class="text-gray-400">edit</button><button onclick="delMsg('${msg.id}')" class="text-red-700">delete</button>` : ''}
     </div>`;
     div.innerHTML = html;
+    if (msg.expiresAt) setTimeout(() => div.remove(), Math.max(0, new Date(msg.expiresAt) - Date.now()));
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
   }
@@ -347,7 +405,7 @@
     try {
       const { user } = await api('/api/users/' + currentUser.id, 'PATCH', {
         villainName: $('pf-villainName').value, headline: $('pf-headline').value,
-        catchphrase: $('pf-catchphrase').value, nemesis: $('pf-nemesis').value
+        catchphrase: $('pf-catchphrase').value, nemesis: $('pf-nemesis').value, evilCv: $('pf-evilCv').value
       });
       currentUser = { ...currentUser, ...user };
       localStorage.setItem('doomstack_user', JSON.stringify(currentUser));
@@ -367,12 +425,12 @@
   // ---------- Feed ----------
   async function loadPosts() {
     try {
-      const posts = await api('/api/posts');
+      const posts = await api('/api/posts' + (activeTag ? '?tag=' + encodeURIComponent(activeTag) : ''));
       $('posts-list').innerHTML = posts.length ? posts.map(p => {
         const liked = p.likes.some(l => l.userId === currentUser.id);
         return `<div class="bg-black border border-gray-800 p-2.5 rounded">
-          <div class="text-red-400 font-bold">${esc(p.author.villainName)} <span class="text-gray-600 font-normal">@${esc(p.author.username)} · ${new Date(p.createdAt).toLocaleString()}</span></div>
-          <p class="text-gray-200 my-1">${esc(p.content)}</p>
+          <div class="text-red-400 font-bold cursor-pointer" onclick="openProfile('${p.author.id}')">${esc(p.author.villainName)} <span class="text-gray-600 font-normal">@${esc(p.author.username)} · ${new Date(p.createdAt).toLocaleString()}</span></div>
+          <p class="text-gray-200 my-1">${fmtPost(p.content)}</p>
           <button onclick="likePost('${p.id}')" class="${liked ? 'text-red-400' : 'text-gray-500'}">😈 Evil Nod (${p._count.likes})</button>
           <div class="mt-1 space-y-0.5">${p.comments.map(c => `<p class="text-gray-400"><b>${esc(c.author.villainName)}:</b> ${esc(c.content)}</p>`).join('')}</div>
           <input class="inp mt-1" placeholder="Comment..." onkeypress="if(event.key==='Enter')commentPost('${p.id}',this)">
@@ -441,14 +499,14 @@
       $('bounties-list').innerHTML = bounties.length ? bounties.map(b => {
         const expired = b.expiresAt && new Date(b.expiresAt) < new Date();
         const left = b.expiresAt && !expired ? Math.max(0, Math.round((new Date(b.expiresAt) - Date.now()) / 3600000)) + 'h left' : (expired ? 'EXPIRED' : '');
-        const action = b.status === 'OPEN' && !expired ? `<button onclick="claimBounty('${b.id}')" class="btn2">Claim</button>`
+        const action = b.status === 'OPEN' && !expired && b.creatorId !== currentUser.id ? `<button onclick="claimBounty('${b.id}')" class="btn2">Claim</button>`
           : b.status === 'IN_PROGRESS' && b.creatorId === currentUser.id ? `<button onclick="completeBounty('${b.id}')" class="btn2">Mark Complete</button>` : '';
         return `<div class="bg-black border border-gray-800 p-2.5 rounded text-xs">
-          <div class="flex justify-between font-bold text-red-400"><span>${esc(b.title)} <span class="text-gray-600 font-normal">[${esc(b.category)}]</span></span><span class="text-emerald-400">${esc(b.reward)}</span></div>
+          <div class="flex justify-between font-bold text-red-400"><span>${esc(b.title)} <span class="text-gray-600 font-normal">[${esc(b.category)}]</span></span><span class="text-emerald-400">${esc(b.reward)}${b.rewardCoins ? ' 🪙' + b.rewardCoins : ''}</span></div>
           <p class="text-gray-300 mt-1">Target: ${esc(b.target)}</p>
           <p class="text-gray-500 mt-0.5">${esc(b.description)}</p>
           <div class="flex justify-between items-center mt-1.5 text-[10px] text-gray-500">
-            <span>${b.status}${b.claimer ? ' · ' + esc(b.claimer.villainName) : ''} ${left}</span>${action}
+            <span>${b.status}${b.claimer ? ' · ' + esc(b.claimer.villainName) : ''} ${left}</span>${action}${b.status === 'OPEN' && b.creatorId === currentUser.id ? `<button onclick="cancelBounty('${b.id}')" class="btn2 ml-1">Cancel</button>` : ''}
           </div></div>`;
       }).join('') : '<div class="text-gray-600 text-center italic text-xs py-4">No active contracts found.</div>';
     } catch (err) { console.error('Failed to load bounties:', err); }
@@ -459,15 +517,187 @@
     try {
       await api('/api/bounties', 'POST', {
         title: $('bounty-title').value, target: $('bounty-target').value, description: $('bounty-desc').value,
-        reward: $('bounty-reward').value, category: $('bounty-category').value, creatorId: currentUser.id,
+        reward: $('bounty-reward').value, rewardCoins: Number($('bounty-coins').value) || 0, category: $('bounty-category').value, creatorId: currentUser.id,
         expiresAt: exp ? new Date(exp).toISOString() : undefined
       });
-      ['title', 'target', 'desc', 'reward', 'expires'].forEach(k => $('bounty-' + k).value = '');
+      ['title', 'target', 'desc', 'reward', 'expires', 'coins'].forEach(k => $('bounty-' + k).value = '');
       $('bounty-form').classList.add('hidden'); loadBounties();
     } catch (err) { alert(netErr(err)); }
   }
   async function claimBounty(id) { try { await api(`/api/bounties/${id}/claim`, 'POST', { userId: currentUser.id }); loadBounties(); } catch (e) { alert(e.message); } }
   async function completeBounty(id) { try { await api(`/api/bounties/${id}/complete`, 'POST', { userId: currentUser.id }); loadBounties(); } catch (e) { alert(e.message); } }
+  // ---------- Rank, wallet, leaderboard, hero DB ----------
+  const RANKS = [[1000, 'Overlord'], [300, 'Mastermind'], [100, 'Schemer'], [20, 'Henchman'], [0, 'Lackey']];
+  const rankOf = n => (RANKS.find(r => n >= r[0]) || RANKS[4])[1];
+  async function refreshMe() {
+    try {
+      const { user } = await api('/api/me');
+      currentUser = { ...currentUser, ...user };
+      localStorage.setItem('doomstack_user', JSON.stringify(currentUser));
+      $('coins').textContent = `🪙 ${user.coins} · ${rankOf(user.notoriety)} (${user.notoriety})`;
+      $('admin-tools').classList.toggle('hidden', user.role !== 'ADMIN');
+    } catch (e) { /* handled in api() */ }
+  }
+  async function loadLeaderboard() {
+    try {
+      const rows = await api('/api/leaderboard');
+      $('leaderboard').innerHTML = rows.map((r, i) => `<div class="flex justify-between"><span>${i + 1}. ${esc(r.villainName)}</span><span class="text-yellow-500">🪙${r.coins} · ${rankOf(r.notoriety)}</span></div>`).join('');
+    } catch (e) {}
+  }
+  async function loadHeroes() {
+    try {
+      const rows = await api('/api/heroes');
+      $('hero-db').innerHTML = rows.map(h => `<div class="flex justify-between"><span>${esc(h.heroName)}</span><span class="text-gray-500">${h._count}x · max Lvl ${h._max.dangerLevel}</span></div>`).join('') || '<i class="text-gray-600">No intel yet.</i>';
+    } catch (e) {}
+  }
+
+  // ---------- Secret Societies ----------
+  let activeSociety = null;
+  async function loadSocieties() {
+    try {
+      const list = await api('/api/societies');
+      const sel = $('society-select');
+      sel.innerHTML = '<option value="">-- My Secret Societies --</option>' + list.map(s => `<option value="${s.id}">${esc(s.name)} (invite: ${esc(s.inviteCode)})</option>`).join('');
+      if (activeSociety) sel.value = activeSociety;
+    } catch (e) {}
+  }
+  async function openSociety() {
+    activeSociety = $('society-select').value;
+    const box = $('society-messages'); box.innerHTML = '';
+    if (!activeSociety) return;
+    try { (await api(`/api/societies/${activeSociety}/messages`)).forEach(appendSocMsg); } catch (e) {}
+  }
+  function appendSocMsg(m) {
+    const box = $('society-messages'), d = document.createElement('div');
+    d.innerHTML = `<b class="text-red-400">${esc(m.sender?.villainName || '?')}:</b> ${esc(m.content)}`;
+    box.appendChild(d); box.scrollTop = box.scrollHeight;
+  }
+  function sendSociety() {
+    const i = $('society-input');
+    if (!activeSociety || !i.value.trim()) return;
+    socket.emit('send_society_message', { societyId: activeSociety, content: i.value }); i.value = '';
+  }
+  async function createSociety() {
+    const name = prompt('Society name?'); if (!name) return;
+    try { const s = await api('/api/societies', 'POST', { name }); activeSociety = s.id; await loadSocieties(); openSociety(); } catch (e) { alert(e.message); }
+  }
+  async function joinSociety() {
+    const code = prompt('Invite code?'); if (!code) return;
+    try { const s = await api('/api/societies/join', 'POST', { code }); activeSociety = s.id; await loadSocieties(); openSociety(); } catch (e) { alert(e.message); }
+  }
+
+  // ---------- Search, edit, admin, cancel ----------
+  async function searchChat() {
+    if (!activeRecipientId) return;
+    const q = $('chat-search').value.trim();
+    if (!q) return setActiveChatRecipient();
+    const r = await api(`/api/messages/${currentUser.id}/${activeRecipientId}/search?q=${encodeURIComponent(q)}`);
+    const box = $('chat-messages'); box.innerHTML = '';
+    if (!r.length) box.innerHTML = '<div class="text-gray-500 text-center italic my-auto">No matches.</div>';
+    r.forEach(appendChatMessage);
+  }
+  function editMsg(id) { const c = prompt('Edit message:'); if (c && c.trim()) socket.emit('edit_message', { messageId: id, userId: currentUser.id, content: c }); }
+  async function cancelBounty(id) { try { await api(`/api/bounties/${id}/cancel`, 'POST'); loadBounties(); refreshMe(); } catch (e) { alert(e.message); } }
+  async function adminBan() {
+    if (!activeRecipientId) return alert('Select a villain first.');
+    if (!confirm('Ban this villain?')) return;
+    try { await api(`/api/admin/users/${activeRecipientId}/ban`, 'POST', { banned: true }); activeRecipientId = null; loadVillainDirectory(); } catch (e) { alert(e.message); }
+  }
+  async function adminMute() {
+    if (!activeRecipientId) return alert('Select a villain first.');
+    const m = prompt('Mute for how many minutes? (0 to unmute)'); if (m === null) return;
+    try { await api(`/api/admin/users/${activeRecipientId}/mute`, 'POST', { minutes: Number(m) || 0 }); } catch (e) { alert(e.message); }
+  }
+  // ---------- Notifications ----------
+  async function loadNotifs() {
+    try {
+      const d = await api('/api/notifications');
+      $('notif-count').textContent = d.unread;
+      $('notif-panel').innerHTML = d.items.length ? d.items.map(n => `<div class="py-1 border-b border-gray-900 ${n.read ? 'text-gray-500' : 'text-gray-200'}">${esc(n.text)} <span class="text-gray-600">${new Date(n.createdAt).toLocaleTimeString()}</span></div>`).join('') : '<i class="text-gray-600">No notifications.</i>';
+    } catch (e) {}
+  }
+  async function toggleNotifs() {
+    const p = $('notif-panel');
+    p.classList.toggle('hidden');
+    if (!p.classList.contains('hidden')) { await loadNotifs(); await api('/api/notifications/read', 'POST'); $('notif-count').textContent = '0'; }
+  }
+
+  // ---------- Hashtags, mentions, profiles ----------
+  let activeTag = null;
+  const fmtPost = t => esc(t)
+    .replace(/#([a-zA-Z0-9_]{2,30})/g, '<a href="#" onclick="filterTag(\'$1\');return false" class="text-red-400">#$1</a>')
+    .replace(/@([a-zA-Z0-9_]{2,30})/g, '<span class="text-yellow-500">@$1</span>');
+  function filterTag(t) { activeTag = t; loadPosts(); loadTrending(); }
+  async function loadTrending() {
+    try {
+      const rows = await api('/api/trending');
+      $('trending').innerHTML = (activeTag ? `<button onclick="filterTag(null)" class="btn2">✕ #${esc(activeTag)}</button> ` : '') +
+        (rows.length ? 'Trending schemes: ' + rows.map(([t, n]) => `<a href="#" onclick="filterTag('${t}');return false" class="text-red-400">#${esc(t)}</a> (${n})`).join(' ') : '');
+    } catch (e) {}
+  }
+  const SKILLS = ['Mind Control', 'Explosives', 'Hacking', 'Henchman Management', 'Doomsday Devices', 'Evil Laughter'];
+  function closeProfile() { $('profile-modal').style.display = 'none'; }
+  async function openProfile(id) {
+    try {
+      const d = await api('/api/profile/' + id), u = d.user, mine = id === currentUser.id;
+      const cnt = Object.fromEntries(d.endorsements.map(e => [e.skill, e._count]));
+      $('profile-body').innerHTML = `
+        <div class="flex justify-between"><b class="text-red-400 text-base">${esc(u.villainName)}</b><button onclick="closeProfile()" class="btn2">✕</button></div>
+        <p class="text-gray-500">@${esc(u.username)} · ${u.villainClass} · ${rankOf(u.notoriety)} · ${statusDot[u.status] || ''}</p>
+        ${u.headline ? `<p>${esc(u.headline)}</p>` : ''}${u.catchphrase ? `<p class="italic text-gray-400">"${esc(u.catchphrase)}"</p>` : ''}
+        <p>Lair: ${esc(u.lairLocation)}${u.nemesis ? ` · Nemesis: ${esc(u.nemesis)}` : ''}</p>
+        <p>${d.followers} followers · ${d.following} following</p>
+        ${mine ? '' : `<button onclick="followUser('${id}')" class="btn">${d.isFollowing ? 'Unfollow' : 'Follow'}</button>`}
+        <div><b>Evil CV</b><p class="text-gray-400 whitespace-pre-wrap">${esc(u.evilCv) || '<i>No career history filed.</i>'}</p></div>
+        <div><b>Skills</b>${SKILLS.map(s => `<div class="flex justify-between items-center"><span>${s} (${cnt[s] || 0})</span>${mine ? '' : `<button onclick="endorse('${id}','${s}')" class="btn2">Endorse</button>`}</div>`).join('')}</div>`;
+      $('profile-modal').style.display = 'flex';
+    } catch (e) { alert(e.message); }
+  }
+  async function followUser(id) { try { await api('/api/follow/' + id, 'POST'); openProfile(id); } catch (e) { alert(e.message); } }
+  async function endorse(id, skill) { try { await api('/api/endorse/' + id, 'POST', { skill }); openProfile(id); } catch (e) { alert(e.message); } }
+
+  // ---------- Reply / pin ----------
+  const chatCache = {}; let replyTo = null;
+  function setReply(id) {
+    replyTo = chatCache[id]; if (!replyTo) return;
+    const b = $('reply-banner'); b.textContent = '↩ Replying to: ' + (replyTo.content || '[image]').slice(0, 60) + '  (click to cancel)';
+    b.onclick = clearReply; b.classList.remove('hidden'); b.style.cursor = 'pointer';
+  }
+  function clearReply() { replyTo = null; $('reply-banner').classList.add('hidden'); }
+  function pinMsg(id) { socket.emit('pin_message', { messageId: id, userId: currentUser.id }); }
+
+  // ---------- Villain Lab (generators + quiz, client-side) ----------
+  const pickFrom = (a, r) => a[Math.floor(r() * a.length)];
+  function showScheme() {
+    let s = 0; for (const c of new Date().toISOString().slice(0, 10) + currentUser.id) s = (s * 31 + c.charCodeAt(0)) >>> 0;
+    const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+    const v = ['Steal', 'Sabotage', 'Hypnotize', 'Replace', 'Flood', 'Hold hostage', 'Rebrand'];
+    const t = ['the city\'s clock tower', 'the Hero Council\'s coffee supply', 'the national moon', 'every traffic light downtown', 'Captain Justice\'s cape', 'the world\'s Wi-Fi'];
+    const m = ['a fleet of mind-controlled pigeons', 'a cleverly forged permit', 'a shrink ray', 'an army of unpaid interns', 'a very dramatic monologue'];
+    const w = ['but leave a polite note', 'during a charity gala', 'while framing your nemesis', 'and livestream it'];
+    $('lab-out').innerHTML = `<b class="text-red-400">Today's scheme:</b> ${pickFrom(v, r)} ${pickFrom(t, r)} using ${pickFrom(m, r)}, ${pickFrom(w, r)}.`;
+  }
+  function genName() {
+    const r = Math.random, P = ['Dr.', 'Lord', 'Baron', 'Captain', 'Lady', 'The'], M = ['Doom', 'Shadow', 'Venom', 'Grim', 'Crimson', 'Void', 'Ash'], S = ['fang', 'claw', 'bane', 'storm', 'wraith', 'heart', 'thorn'];
+    $('lab-out').innerHTML = `<b class="text-red-400">Your alias:</b> ${pickFrom(P, r)} ${pickFrom(M, r)}${pickFrom(S, r)}`;
+  }
+  const QUIZ = [
+    ['Your ideal weekend?', ['Building a death ray', 'Hosting a gala for investors', 'Hiding in a volcano', 'A bar fight']],
+    ['How do you handle a hero?', ['Trap them with science', 'Buy their sponsors', 'Out-monologue them', 'Punch first']],
+    ['Pick a lair.', ['Underground lab', 'Skyscraper penthouse', 'Floating fortress', 'Back-alley warehouse']],
+    ['Your motto?', ['Knowledge is power', 'Profit is power', 'Fear is power', 'Muscle is power']]
+  ];
+  const QCLS = ['MAD_SCIENTIST', 'CORRUPT_CEO', 'OVERLORD', 'HENCHMAN'];
+  let qi = 0, qScore = [0, 0, 0, 0];
+  function startQuiz() { qi = 0; qScore = [0, 0, 0, 0]; quizStep(); }
+  function quizStep() {
+    if (qi >= QUIZ.length) {
+      const best = qScore.indexOf(Math.max(...qScore));
+      $('lab-out').innerHTML = `<b class="text-red-400">You are a ${QCLS[best].replace('_', ' ')}.</b>`; return;
+    }
+    const [q, opts] = QUIZ[qi];
+    $('lab-out').innerHTML = `<p class="mb-1">${q}</p>` + opts.map((o, i) => `<button onclick="qScore[${i}]++;qi++;quizStep()" class="btn2 block mb-1">${o}</button>`).join('');
+  }
 </script>
 </body>
 </html>
