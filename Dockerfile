@@ -1,5 +1,8 @@
 FROM node:18-bullseye-slim
 
+# Prisma needs OpenSSL, which the slim image doesn't include
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Install dependencies

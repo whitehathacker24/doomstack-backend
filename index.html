@@ -13,7 +13,7 @@
 
   <!-- App Container -->
   <div id="app" class="max-w-6xl mx-auto p-4 md:p-6">
-    
+
     <!-- Header -->
     <header class="border-b border-red-900/60 pb-4 mb-6 flex justify-between items-center">
       <div>
@@ -77,7 +77,7 @@
         </div>
         <div>
           <label class="block text-xs text-gray-400 uppercase mb-1">Password (Min 6 chars)</label>
-          <input type="password" id="signup-password" required class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
+          <input type="password" id="signup-password" required minlength="6" class="w-full bg-black border border-gray-800 rounded p-2 text-white focus:border-red-600 focus:outline-none text-sm">
         </div>
         <div>
           <label class="block text-xs text-gray-400 uppercase mb-1">Lair Location</label>
@@ -91,16 +91,16 @@
 
     <!-- DASHBOARD VIEW -->
     <div id="dashboard-view" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
+
       <!-- Left Column: Direct Messaging & Scrollable Directory -->
       <div class="lg:col-span-2 space-y-6">
-        
+
         <!-- Direct Messaging Box -->
         <div class="bg-gray-950 border border-gray-900 rounded-lg p-4 shadow-lg">
           <h2 class="text-lg font-bold text-red-500 mb-3 flex items-center">
             <span class="w-2 h-2 bg-red-600 rounded-full animate-pulse mr-2"></span> Secure Comms (Direct Messages)
           </h2>
-          
+
           <!-- Scrollable Villain Directory Dropdown -->
           <div class="mb-3">
             <label class="block text-xs text-gray-400 uppercase mb-1">Select Target Villain:</label>
@@ -117,11 +117,11 @@
           <!-- Input & Image Upload Controls -->
           <div class="flex items-center space-x-2">
             <input type="text" id="chat-input" placeholder="Type secure dispatch..." class="flex-1 bg-black border border-gray-800 text-white p-2 rounded text-sm focus:outline-none focus:border-red-600" onkeypress="if(event.key === 'Enter') sendDirectMessage()">
-            
+
             <!-- Hidden File Input -->
             <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
             <button onclick="document.getElementById('image-upload').click()" class="bg-gray-900 hover:bg-gray-800 text-gray-300 border border-gray-800 px-3 py-2 rounded text-xs transition">📷 Attach</button>
-            
+
             <button onclick="sendDirectMessage()" class="bg-red-800 hover:bg-red-700 text-white px-4 py-2 rounded text-xs font-bold transition">Transmit</button>
           </div>
           <div id="image-preview-indicator" class="text-xs text-red-400 mt-1 hidden">Image attached and ready for broadcast.</div>
@@ -153,10 +153,10 @@
 
       <!-- Right Column: Global Hero Threat Feed -->
       <div class="space-y-6">
-        
+
         <div class="bg-gray-950 border border-gray-900 rounded-lg p-4 shadow-lg">
           <h2 class="text-lg font-bold text-red-500 mb-3">🚨 Global Threat Feed</h2>
-          
+
           <!-- Report Hero Form -->
           <form onsubmit="reportHeroSighting(event)" class="bg-black/80 border border-gray-800 p-3 rounded mb-4 space-y-2 text-xs">
             <p class="font-bold text-gray-400 mb-1">Report Hero Sighting</p>
@@ -185,7 +185,9 @@
 
   <!-- Client JavaScript Logic -->
   <script>
-    const BACKEND_URL = 'https://doomstack-backend.onrender.com';
+    // Uses your local backend when the page is served from localhost, the live Render server otherwise
+    const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+    const BACKEND_URL = IS_LOCAL ? 'http://localhost:4000' : 'https://doomstack-backend.onrender.com';
     let socket = null;
     let currentUser = null;
     let activeRecipientId = null;
@@ -211,12 +213,17 @@
       }
     }
 
+    function showAuthError(message) {
+      const errBox = document.getElementById('auth-error');
+      errBox.textContent = message;
+      errBox.classList.remove('hidden');
+    }
+
     // Login Handler
     async function handleLogin(e) {
       e.preventDefault();
       const identifier = document.getElementById('login-identifier').value;
       const password = document.getElementById('login-password').value;
-      const errBox = document.getElementById('auth-error');
 
       try {
         const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
@@ -229,8 +236,10 @@
 
         setSession(data.user);
       } catch (err) {
-        errBox.textContent = err.message;
-        errBox.classList.remove('hidden');
+        // "Failed to fetch" usually means the server is asleep (Render free tier) or unreachable
+        showAuthError(err.message === 'Failed to fetch'
+          ? 'Cannot reach the server. If it is on Render\'s free tier, it may be waking up - wait ~60s and try again.'
+          : err.message);
       }
     }
 
@@ -245,7 +254,6 @@
         password: document.getElementById('signup-password').value,
         lairLocation: document.getElementById('signup-lairLocation').value,
       };
-      const errBox = document.getElementById('auth-error');
 
       try {
         const res = await fetch(`${BACKEND_URL}/api/auth/signup`, {
@@ -258,8 +266,9 @@
 
         setSession(data.user);
       } catch (err) {
-        errBox.textContent = err.message;
-        errBox.classList.remove('hidden');
+        showAuthError(err.message === 'Failed to fetch'
+          ? 'Cannot reach the server. If it is on Render\'s free tier, it may be waking up - wait ~60s and try again.'
+          : err.message);
       }
     }
 
@@ -267,7 +276,7 @@
     function setSession(user) {
       currentUser = user;
       localStorage.setItem('doomstack_user', JSON.stringify(user));
-      
+
       document.getElementById('auth-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
       document.getElementById('user-status').classList.remove('hidden');
@@ -301,6 +310,7 @@
 
       socket.on('connect', () => {
         console.log('[SOCKET CONNECTED]:', socket.id);
+        // Runs on every (re)connect so the personal room is always rejoined
         socket.emit('join_user_room', currentUser.id);
       });
 
@@ -312,11 +322,13 @@
         appendHeroSighting(sighting);
       });
 
+      // Only show the message if it belongs to the conversation that is currently open.
+      // The server echoes your own messages back to you, so we do NOT append locally when sending.
       socket.on('receive_direct_message', (msg) => {
-        console.log('[SOCKET MESSAGE RECEIVED]:', msg);
-        if (msg.senderId === activeRecipientId || msg.recipientId === activeRecipientId || msg.senderId === currentUser.id) {
-          appendChatMessage(msg);
-        }
+        const isThisChat =
+          (msg.senderId === activeRecipientId && msg.recipientId === currentUser.id) ||
+          (msg.senderId === currentUser.id && msg.recipientId === activeRecipientId);
+        if (isThisChat) appendChatMessage(msg);
       });
 
       socket.on('new_bounty_posted', (bounty) => {
@@ -330,8 +342,8 @@
         const res = await fetch(`${BACKEND_URL}/api/users`);
         const users = await res.json();
         const select = document.getElementById('villain-dropdown');
-        
-        select.innerHTML = '<option value="">-- Select a Villain to Chat --</option>' + 
+
+        select.innerHTML = '<option value="">-- Select a Villain to Chat --</option>' +
           users.filter(u => u.id !== currentUser.id)
                .map(u => `<option value="${u.id}">${escapeHtml(u.villainName)} (@${escapeHtml(u.username)}) [${u.villainClass}]</option>`)
                .join('');
@@ -344,7 +356,7 @@
     async function setActiveChatRecipient() {
       activeRecipientId = document.getElementById('villain-dropdown').value;
       const chatBox = document.getElementById('chat-messages');
-      
+
       if (!activeRecipientId) {
         chatBox.innerHTML = '<div class="text-gray-500 text-center italic my-auto">Select a villain from the directory above to begin secure transmission.</div>';
         return;
@@ -355,7 +367,7 @@
       try {
         const res = await fetch(`${BACKEND_URL}/api/messages/${currentUser.id}/${activeRecipientId}`);
         const messages = await res.json();
-        
+
         chatBox.innerHTML = '';
         if (!messages.length) {
           chatBox.innerHTML = '<div class="text-gray-500 text-center italic my-auto">No prior transmissions with this entity. Send your first dispatch below.</div>';
@@ -388,6 +400,10 @@
         return;
       }
       if (!content && !attachedImageData) return;
+      if (!socket || !socket.connected) {
+        alert('Not connected to the server yet. Wait a moment and try again.');
+        return;
+      }
 
       const messagePayload = {
         senderId: currentUser.id,
@@ -396,15 +412,9 @@
         imageUrl: attachedImageData
       };
 
-      console.log('[EMITTING SEND DIRECT MESSAGE]:', messagePayload);
-
+      // The server saves the message and sends it back to this user's room,
+      // where the 'receive_direct_message' handler displays it.
       socket.emit('send_direct_message', messagePayload);
-
-      // Immediately display your own message locally
-      appendChatMessage({
-        ...messagePayload,
-        createdAt: new Date().toISOString()
-      });
 
       document.getElementById('chat-input').value = '';
       attachedImageData = null;
@@ -419,11 +429,11 @@
       const isMe = msg.senderId === currentUser.id;
       const div = document.createElement('div');
       div.className = `p-2 rounded max-w-[80%] ${isMe ? 'ml-auto bg-red-950/40 border border-red-900/40' : 'mr-auto bg-gray-900 border border-gray-800'}`;
-      
+
       let html = `<p class="text-xs text-gray-400 mb-0.5">${isMe ? 'You' : 'Target'}</p>`;
       if (msg.content) html += `<p class="text-white">${escapeHtml(msg.content)}</p>`;
       if (msg.imageUrl) html += `<img src="${msg.imageUrl}" class="mt-2 max-h-40 rounded border border-gray-800">`;
-      
+
       div.innerHTML = html;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
@@ -487,7 +497,7 @@
         const res = await fetch(`${BACKEND_URL}/api/bounties`);
         const bounties = await res.json();
         const list = document.getElementById('bounties-list');
-        
+
         list.innerHTML = bounties.length ? bounties.map(b => `
           <div class="bg-black border border-gray-800 p-2.5 rounded text-xs">
             <div class="flex justify-between font-bold text-red-400">
@@ -516,7 +526,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, target, description, reward, creatorId: currentUser.id })
         });
-        
+
         const data = await res.json();
         if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
 

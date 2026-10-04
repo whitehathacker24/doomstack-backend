@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -9,9 +10,6 @@ const prisma = new PrismaClient();
 const app = express();
 const server = http.createServer(app);
 
-// Configure CORS for Express and Socket.IO
-const allowedOrigins = ['*']; // Adjust this if you want to lock it down to your frontend origin
-
 app.use(cors({
   origin: true,
   credentials: true
@@ -22,7 +20,9 @@ const io = new Server(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
-  }
+  },
+  // Default is 1 MB, which silently kills the connection when a base64 image is sent
+  maxHttpBufferSize: 10e6 // 10 MB
 });
 
 const PORT = process.env.PORT || 4000;
@@ -38,9 +38,13 @@ app.get('/', (req, res) => {
 app.post('/api/auth/signup', async (req, res) => {
   try {
     const { villainName, username, villainClass, email, password, lairLocation } = req.body;
-    
+
     if (!villainName || !username || !email || !password) {
       return res.status(400).json({ error: 'Missing required credentials' });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     const existingUser = await prisma.user.findFirst({
@@ -205,7 +209,13 @@ io.on('connection', (socket) => {
 
   // Handle Direct Messaging
   socket.on('send_direct_message', async (data) => {
-    console.log('[SOCKET MESSAGE RECEIVED]:', data);
+    // Don't log the full payload: it may contain a huge base64 image
+    console.log('[SOCKET MESSAGE RECEIVED]:', {
+      senderId: data?.senderId,
+      recipientId: data?.recipientId,
+      hasContent: !!data?.content,
+      hasImage: !!data?.imageUrl
+    });
     try {
       const { senderId, recipientId, content, imageUrl } = data;
       if (!senderId || !recipientId) {
