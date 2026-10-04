@@ -306,7 +306,9 @@
     function initSocket() {
       if (socket) socket.disconnect();
 
-      socket = io(BACKEND_URL, { withCredentials: true });
+      // No cookies are used (login lives in localStorage), so credentials aren't needed.
+      // Sending them would force the server to name this exact origin instead of '*'.
+      socket = io(BACKEND_URL);
 
       socket.on('connect', () => {
         console.log('[SOCKET CONNECTED]:', socket.id);

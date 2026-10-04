@@ -18,8 +18,9 @@ app.use(express.json({ limit: '10mb' })); // Increased limit to support base64 i
 
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: true, // reflect the caller's origin (works with or without credentials)
+    methods: ['GET', 'POST'],
+    credentials: true
   },
   // Default is 1 MB, which silently kills the connection when a base64 image is sent
   maxHttpBufferSize: 10e6 // 10 MB
